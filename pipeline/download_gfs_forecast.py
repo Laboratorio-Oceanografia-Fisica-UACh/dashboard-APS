@@ -17,11 +17,17 @@ import datetime
 import requests
 import numpy as np
 
-# Dominio geográfico del APS extendido (captura Chiloé, Golfo de Penas, Drake y Patagonia)
+# Dominio geográfico de descarga GFS
 LAT_NORTH = -10
 LAT_SOUTH = -56
 LON_WEST = -130
 LON_EAST = -65
+
+# Dominio oceánico estricto para rastreo del centro bárico (excluye Los Andes/continente)
+TRACK_LAT_NORTH = -18.0
+TRACK_LAT_SOUTH = -54.0
+TRACK_LON_WEST = -125.0
+TRACK_LON_EAST = -75.0
 
 NOMADS_BASE = "https://nomads.ncep.noaa.gov"
 
@@ -110,7 +116,7 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
         # Procesar GRIB con xarray y detectar centro del APS
         try:
             with xr.open_dataset(target_grib, engine="cfgrib") as ds:
-                p_var = ds["prmsl"] / 100.0 # Pascales a hPa
+                p_var = ds["prmsl"] / 100.0  # Pascales a hPa
                 lats = ds["latitude"].values
                 lons = ds["longitude"].values
 
@@ -119,9 +125,18 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
                     lons = np.where(lons > 180, lons - 360, lons)
 
                 grid = p_var.values
-                max_idx = np.unravel_index(np.nanargmax(grid), grid.shape)
+
+                # Máscara booleana para la ventana oceánica de seguimiento (evita Los Andes/continente)
+                lat_mask = (lats <= TRACK_LAT_NORTH) & (lats >= TRACK_LAT_SOUTH)
+                lon_mask = (lons >= TRACK_LON_WEST) & (lons <= TRACK_LON_EAST)
+
+                # Aplicar máscara en 2D
+                ocean_mask = np.outer(lat_mask, lon_mask)
+                masked_grid = np.where(ocean_mask, grid, np.nan)
+
+                max_idx = np.unravel_index(np.nanargmax(masked_grid), masked_grid.shape)
                 
-                max_p = float(round(grid[max_idx], 2))
+                max_p = float(round(masked_grid[max_idx], 2))
                 lat_c = float(round(lats[max_idx[0]], 2))
                 lon_c = float(round(lons[max_idx[1]], 2))
 
