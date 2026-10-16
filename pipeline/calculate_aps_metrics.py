@@ -14,11 +14,11 @@ import datetime
 import numpy as np
 import pandas as pd
 
-# Dominio oceánico de seguimiento del APS (excluye Altiplano/Andes y latitudes polares)
+# Dominio oceánico de seguimiento del APS (ampliado a Chiloé, Golfo de Penas y Patagonia, excluyendo Altiplano/Andes)
 TRACK_LAT_NORTH = -18.0
-TRACK_LAT_SOUTH = -45.0
-TRACK_LON_WEST = -120.0
-TRACK_LON_EAST = -75.0
+TRACK_LAT_SOUTH = -54.0
+TRACK_LON_WEST = -125.0
+TRACK_LON_EAST = -72.0
 
 
 def process_netcdf_files(input_dir, cache_csv_path):

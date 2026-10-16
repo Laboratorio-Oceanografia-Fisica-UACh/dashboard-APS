@@ -17,11 +17,11 @@ import datetime
 import requests
 import numpy as np
 
-# Dominio geográfico del APS
+# Dominio geográfico del APS extendido (captura Chiloé, Golfo de Penas, Drake y Patagonia)
 LAT_NORTH = -10
-LAT_SOUTH = -48
-LON_WEST = -120
-LON_EAST = -70
+LAT_SOUTH = -56
+LON_WEST = -130
+LON_EAST = -65
 
 NOMADS_BASE = "https://nomads.ncep.noaa.gov"
 

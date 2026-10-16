@@ -54,23 +54,23 @@ def download_era5_mslp(years, months, output_dir, synoptic_only=False):
     # Días del mes (del 01 al 31)
     days = [f"{d:02d}" for d in range(1, 32)]
 
-    # Cuadripolo geográfico del Pacífico Suroriental:
+    # Cuadripolo geográfico ampliado del Pacífico Suroriental y Cono Sur:
     # Formato ECMWF CDS: [Norte, Oeste, Sur, Este]
-    # Dominio APS: 10°S a 48°S y 120°W a 70°W
-    bounding_box = [-10, -120, -48, -70]
+    # Dominio APS extendido: 10°S a 56°S y 130°W a 65°W (captura Chiloé, Golfo de Penas, Drake y Patagonia)
+    bounding_box = [-10, -130, -56, -65]
 
     for year in years:
         nc_filename = f"era5_mslp_pacifico_{year}.nc"
         nc_filepath = os.path.join(output_dir, nc_filename)
 
-        # Verificación de reanudación: Si ya existe en la carpeta, omitirlo
+        # Si el archivo ya existe por haber sido descargado previamente en esta corrida, se omite
         if os.path.exists(nc_filepath):
             print(f"⏩ [SALTANDO] El año {year} ya existe en {nc_filepath}")
             continue
 
         print("\n" + "=" * 60)
         print(f"🌊 [ERA5] Solicitando datos horarios para el año: {year}")
-        print(f"📍 Dominio APS: 10°S a 48°S, 120°W a 70°W (Pacífico Suroriental)")
+        print(f"📍 Dominio APS Extendido: 10°S a 56°S, 130°W a 65°W")
         print(f"⏱️ 24 horas diarias (00:00 a 23:00 UTC)")
         print(f"💾 Destino directo: {nc_filepath}")
         print("=" * 60)
