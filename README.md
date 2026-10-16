@@ -106,7 +106,7 @@ dashboard-anticiclon-pacifico/
 
 Cualquier usuario, investigador o tomador de decisiones puede consultar el dashboard directamente desde su navegador web **sin necesidad de instalar software, clonar repositorios ni configurar entornos**:
 
-👉 **[Acceder al Observatorio del APS en Vivo](https://laboratorio-oceanografia-fisica-uach.github.io/dashboard-anticiclon-pacifico/)**
+👉 **[Acceder al Observatorio del APS en Vivo](https://laboratorio-oceanografia-fisica-uach.github.io/dashboard-APS/)** 
 
 ---
 
