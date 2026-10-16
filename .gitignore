@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Archivos pesados de datos oceanográficos y atmosféricos
+# NUNCA comitear archivos binarios pesados al repositorio git
+*.nc
+*.nc4
+*.cdf
+*.grb
+*.grb2
+*.grib
+*.grib2
+*.hdf
+*.h5
+*.zarr/
+*.tar.gz
+*.zip
+
+# Carpetas de datos locales pesados
+data/raw/*
+!data/raw/.gitkeep
+data/temp/*
+!data/temp/.gitkeep
+
+# Credenciales y archivos sensibles
+*.env
+*.env.*
+credentials.json
+secrets.yml
+
+# IDEs y SO
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

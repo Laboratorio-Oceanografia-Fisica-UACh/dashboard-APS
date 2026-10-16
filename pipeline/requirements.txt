@@ -1,0 +1,10 @@
+# Dependencias del Pipeline de Datos del Anticiclón del Pacífico Sur (APS)
+# LOFA - Universidad Austral de Chile
+
+xarray>=2023.1.0
+netCDF4>=1.6.0
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+requests>=2.28.0
+cdsapi>=0.7.0

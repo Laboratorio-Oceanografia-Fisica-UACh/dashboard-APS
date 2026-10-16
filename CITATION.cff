@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "Si utilizas este software o sus datos procesados en una publicación científica, por favor cítalo como se indica a continuación."
+authors:
+  - name: "Laboratorio de Oceanografía Física (LOFA)"
+    affiliation: "Instituto de Ciencias Marinas y Limnológicas, Universidad Austral de Chile (UACh)"
+    website: "https://github.com/Laboratorio-Oceanografia-Fisica-UACh"
+title: "Dashboard Científico del Anticiclón del Pacífico Sur (APS)"
+version: 1.0.0
+doi: ""
+date-released: 2026-10-14
+url: "https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-anticiclon-pacifico"
+license: AGPL-3.0
+keywords:
+  - "Anticiclón del Pacífico Sur"
+  - "South Pacific Anticyclone"
+  - "Oceanografía Física"
+  - "Presión Atmosférica Superficial"
+  - "Ciencia Abierta"
+  - "UACh"

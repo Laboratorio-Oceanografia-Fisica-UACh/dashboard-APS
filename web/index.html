@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Anticiclón del Pacífico Sur (APS) | LOFA - UACh</title>
+  <meta name="description" content="Dashboard científico de acceso abierto para el monitoreo, análisis y comparación de modelos del Anticiclón del Pacífico Sur. Laboratorio de Oceanografía Física, Universidad Austral de Chile.">
+  <meta name="author" content="Laboratorio de Oceanografía Física (LOFA) - Universidad Austral de Chile">
+  
+  <!-- Favicon e Identidad -->
+  <link rel="icon" type="image/png" href="assets/img/logo_lofa.png">
+
+  <!-- Fuentes e Iconos -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS (Mapas) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Estilos Principales -->
+  <link rel="stylesheet" href="styles/main.css?v=2">
+  
+  <!-- Plotly.js (Gráficos científicos interactivos) -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+  <!-- Encabezado Institucional -->
+  <header class="navbar">
+    <div class="navbar-brand">
+      <img src="assets/img/logo_lofa.png" alt="Logo LOFA UACh" class="brand-logo" id="lofaLogo">
+      <div class="brand-text">
+        <h1 class="brand-title">Anticiclón del Pacífico Sur (APS)</h1>
+        <p class="brand-subtitle">Laboratorio de Oceanografía Física — Universidad Austral de Chile</p>
+      </div>
+    </div>
+
+    <div class="navbar-actions">
+      <!-- Botón de apertura del menú toggleable multimodelo -->
+      <button id="toggleModelDrawerBtn" class="btn btn-primary" title="Abrir selector y comparador de modelos">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20v-6M6 20V10M18 20V4"/>
+        </svg>
+        <span>Modelos (<span id="selectedModelsCount">2</span>)</span>
+      </button>
+
+      <!-- Botón para ventana de Fundamento Físico Oceanográfico -->
+      <button id="openPhysicsModalBtn" class="btn btn-secondary" title="Ver fundamentos oceanográficos y ecuaciones de los indicadores">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>Fundamento Físico</span>
+      </button>
+
+      <!-- Botón para ventana de Validación Estadística Inter-modelo -->
+      <button id="openValidationModalBtn" class="btn btn-secondary" title="Ver tabla de habilidad estadística y métricas de error (RMSE, BIAS, r)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 20V10M12 20V4M6 20v-6"/>
+        </svg>
+        <span>Validación Estadística</span>
+      </button>
+
+      <!-- Botón para descarga de datos científicos (Ciencia Abierta) -->
+      <a href="data/aps_multimodel_metrics_lofa.csv" download="aps_multimodel_metrics_lofa.csv" class="btn btn-secondary" title="Descargar serie temporal multimodelo consolidada en CSV">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        <span>Datos CSV Multimodelo</span>
+      </a>
+
+      <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-anticiclon-pacifico" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" title="Ver código en GitHub">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        <span>Código Libre</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Banner de Estado y Resumen Científico -->
+  <section class="metrics-summary">
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">Presión Máxima (PSA)</span>
+        <button class="kpi-info-trigger" data-topic="pressure" title="Ver explicación física de la Presión Máxima">ℹ️</button>
+      </div>
+      <div class="metric-value" id="kpiPressure">-- <small>hPa</small></div>
+      <span class="metric-sub" id="kpiModelFocus">Modelo en foco: ERA5</span>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">Posición del Centro Bárico</span>
+        <button class="kpi-info-trigger" data-topic="position" title="Ver explicación física de la Posición y Migración">ℹ️</button>
+      </div>
+      <div class="metric-value" id="kpiPosition">--°S, --°W</div>
+      <span class="metric-sub">Océano Pacífico Suroriental</span>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">Anomalía Superficial</span>
+        <button class="kpi-info-trigger" data-topic="anomaly" title="Ver explicación física de la Anomalía de Presión">ℹ️</button>
+      </div>
+      <div class="metric-value" id="kpiAnomaly">-- <small>hPa</small></div>
+      <span class="metric-sub">Respecto a ciclo climatológico histórico</span>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">Última Actualización</span>
+        <button class="kpi-info-trigger" data-topic="coverage" title="Ver detalles de Cobertura y Metodología">ℹ️</button>
+      </div>
+      <div class="metric-value" id="kpiDate" style="font-size: 1.2rem; font-family: var(--font-mono);">--</div>
+      <span class="metric-sub">Pipeline automatizado LOFA</span>
+    </div>
+  </section>
+
+  <!-- Contenedor Principal del Dashboard -->
+  <main class="dashboard-grid">
+    <!-- Fila 1: Mapas -->
+    <div class="grid-card map-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Mapa de Presión Atmosférica (PA) e Isobaras</h2>
+          <p class="card-desc">Campo de presión a nivel del mar (hPa) y ubicación del centro del APS</p>
+        </div>
+        <span class="badge badge-accent" id="mapCenterCoordBadge">Núcleo: Buscando...</span>
+      </div>
+      <div class="card-body">
+        <div id="pressureMap" class="map-container"></div>
+      </div>
+    </div>
+
+    <div class="grid-card map-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Mapa de Anomalías de Presión</h2>
+          <p class="card-desc">Desviación respecto al promedio histórico (Rojo: Positiva | Azul: Negativa)</p>
+        </div>
+        <span class="badge badge-info">Climatología Base</span>
+      </div>
+      <div class="card-body">
+        <div id="anomalyMap" class="map-container"></div>
+      </div>
+    </div>
+
+    <!-- Fila 2: Series de Tiempo -->
+    <div class="grid-card chart-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Serie de Tiempo: Posición del Centro (Latitud y Longitud)</h2>
+          <p class="card-desc">Evolución de la migración estacional y decadal del núcleo del APS</p>
+        </div>
+        <div class="chart-controls">
+          <button class="btn-chip" data-range="30">30d</button>
+          <button class="btn-chip" data-range="90">90d</button>
+          <button class="btn-chip active" data-range="365">1 año</button>
+          <button class="btn-chip" data-range="1825">5 años</button>
+          <button class="btn-chip" data-range="all">Histórico</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="positionChart" class="chart-container"></div>
+      </div>
+    </div>
+
+    <div class="grid-card chart-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Serie de Tiempo: Intensidad Presión Superficial (PSA)</h2>
+          <p class="card-desc">Presión en el centro del anticiclón (hPa) y comparación contra climatología</p>
+        </div>
+        <div class="chart-controls">
+          <button class="btn-chip" data-range="30">30d</button>
+          <button class="btn-chip" data-range="90">90d</button>
+          <button class="btn-chip active" data-range="365">1 año</button>
+          <button class="btn-chip" data-range="1825">5 años</button>
+          <button class="btn-chip" data-range="all">Histórico</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="pressureChart" class="chart-container"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Ventana Toggleable / Cajón Lateral (Drawer) de Modelos -->
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <aside id="modelDrawer" class="model-drawer" aria-labelledby="drawerTitle">
+    <div class="drawer-header">
+      <div>
+        <h2 id="drawerTitle" class="drawer-title">Configurar Modelos</h2>
+        <p class="drawer-desc">Selecciona qué modelos graficar y comparar</p>
+      </div>
+      <button id="closeDrawerBtn" class="btn-icon" aria-label="Cerrar menú">
+        ✕
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Acciones rápidas -->
+      <div class="drawer-quick-actions">
+        <button id="selectAllModelsBtn" class="btn-text">Seleccionar Todos</button>
+        <span>•</span>
+        <button id="deselectAllModelsBtn" class="btn-text">Deseleccionar</button>
+      </div>
+
+      <!-- Lista dinámica de modelos con checkboxes -->
+      <div id="modelsCheckboxList" class="models-list">
+        <!-- Generado dinámicamente desde JavaScript -->
+      </div>
+
+      <!-- Ayuda metodológica en el cajón -->
+      <div class="drawer-info-box">
+        <h4>🔬 Comparación Científica</h4>
+        <p>Puedes seleccionar múltiples modelos simultáneamente para evaluar la concordancia sinóptica y la dispersión inter-modelo en la intensidad y latitud del centro del APS.</p>
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <button id="applyModelsBtn" class="btn btn-primary btn-block">Aplicar y Graficar</button>
+    </div>
+  </aside>
+
+  <!-- Ventana Modal Toggleable: Fundamento Físico Oceanográfico -->
+  <div id="physicsModalOverlay" class="science-modal-overlay">
+    <div class="science-modal-container">
+      <div class="science-modal-header">
+        <h2 class="science-modal-title">
+          <span>📘</span> Fundamentos Físicos y Oceanográficos del APS
+        </h2>
+        <button id="closePhysicsModalBtn" class="modal-close-btn" aria-label="Cerrar modal">✕</button>
+      </div>
+
+      <div class="science-modal-body">
+        <!-- Tópico 1 -->
+        <article class="physics-topic" id="topic-pressure">
+          <h3>⚡ 1. Presión Máxima Central (PSA) y Viento Geostrófico</h3>
+          <p>La Presión Superficial Atmosférica central ($P_{max}$) en hectopascales es el índice primario del vigor del anticiclón. El gradiente horizontal de presión entre el centro oceánico del APS y la costa continental sudamericana impulsa el viento geostrófico:</p>
+          <div class="formula-box">
+            u_g = -(1 / (ρ_a · f)) · (∂P / ∂y)  |  v_g = (1 / (ρ_a · f)) · (∂P / ∂x)
+          </div>
+          <p>A su vez, el esfuerzo del viento sobre la superficie del mar depende de forma <strong>no lineal del cuadrado de la velocidad del viento</strong> ($\tau = \rho_a \, C_d \, |\vec{u}| \vec{u}$). Este viento impulsa el transporte de Ekman mar adentro ($M_{Ex} = \tau_y / (\rho_w \cdot f)$), provocando el ascenso forzado de aguas profundas, frías y ricas en nutrientes hacia la superficie (surgencia costera o <em>upwelling</em> de la Corriente de Humboldt).</p>
+        </article>
+
+        <!-- Tópico 2 -->
+        <article class="physics-topic" id="topic-position">
+          <h3>🧭 2. Posición del Centro Bárico (Latitud y Longitud) y Migración Estacional</h3>
+          <p>El núcleo del APS corresponde a la rama descendente de la Celda de Hadley sobre el Pacífico Suroriental y experimenta una marcada migración estacional:</p>
+          <ul>
+            <li><strong>Verano Austral (DJF):</strong> El centro migra hacia el sur ($\sim 35^\circ\text{S} - 40^\circ\text{S}$) y se intensifica ($> 1026\text{ hPa}$), extendiendo los vientos favorables a la surgencia hasta Concepción y Valdivia, y bloqueando los sistemas frontales de precipitación.</li>
+            <li><strong>Invierno Austral (JJA):</strong> El centro se debilita y migra hacia el ecuador ($\sim 25^\circ\text{S} - 30^\circ\text{S}$), permitiendo el ingreso recurrente de bajas presiones y frentes fríos lluviosos hacia la zona centro-sur de Chile.</li>
+          </ul>
+        </article>
+
+        <!-- Tópico 3 -->
+        <article class="physics-topic" id="topic-anomaly">
+          <h3>🌡️ 3. Anomalía Superficial de Presión y Eventos Extremos</h3>
+          <p>La anomalía ($\Delta P = P(t) - \overline{P}_{clim}$) cuantifica la desviación del estado instantáneo respecto al ciclo climatológico medio histórico:</p>
+          <div class="formula-box">
+            Anomalía(t) = P_PSA(t) - P_Climatología(día_del_año)
+          </div>
+          <p>Anomalías persistentemente positivas ($> +2\text{ hPa}$) se asocian a <strong>anticiclones de bloqueo</strong>, condiciones de sequía en Chile central y olas de calor marinas (<em>Marine Heatwaves</em>). Anomalías negativas sostenidas suelen manifestarse durante eventos <strong>El Niño</strong> de gran magnitud o fases de relajación del viento.</p>
+        </article>
+
+        <!-- Tópico 4 -->
+        <article class="physics-topic" id="topic-coverage">
+          <h3>🌐 4. Delimitación Geográfica Oceánica y Metodología</h3>
+          <p>Para evitar artefactos numéricos de reducción barométrica sobre la Cordillera de los Andes y el Altiplano, el algoritmo de detección rastrea el núcleo exclusivamente dentro del dominio oceánico ($18^\circ\text{S} - 45^\circ\text{S}$ y $120^\circ\text{W} - 75^\circ\text{W}$), garantizando que las coordenadas reflejen la verdadera masa de aire marino.</p>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ventana Modal Toggleable: Matriz de Validación Estadística Inter-Modelo -->
+  <div id="validationModalOverlay" class="science-modal-overlay">
+    <div class="science-modal-container">
+      <div class="science-modal-header">
+        <h2 class="science-modal-title">
+          <span>📊</span> Matriz de Habilidad y Validación Inter-Modelo
+        </h2>
+        <button id="closeValidationModalBtn" class="modal-close-btn" aria-label="Cerrar modal">✕</button>
+      </div>
+
+      <div class="science-modal-body">
+        <p style="margin-bottom: 1rem; color: #cbd5e1;">Evaluación cuantitativa rigurosa contra las observaciones de reanálisis de referencia (<strong>ERA5 de Copernicus ECMWF, Resolución 0.25°</strong>). Permite evaluar el error sistemático, la correlación temporal y el desplazamiento espacial de cada modelo:</p>
+        
+        <div style="overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+          <table class="validation-table" id="validationMetricsTable">
+            <thead>
+              <tr>
+                <th>Modelo</th>
+                <th>Tipo / Dominio</th>
+                <th>Calidad (Skill)</th>
+                <th>RMSE (PSA)</th>
+                <th>BIAS (Sesgo)</th>
+                <th>Corr. r (PSA)</th>
+                <th>Corr. r (Lat)</th>
+                <th>Error Espacial</th>
+                <th>Willmott (d)</th>
+              </tr>
+            </thead>
+            <tbody id="validationTableBody">
+              <!-- Renderizado dinámicamente desde el pipeline JSON -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="skill-cards-grid">
+          <div class="skill-card">
+            <h4>🎯 RMSE (Error Cuadrático Medio)</h4>
+            <p>Mide la magnitud promedio del error en la presión central en hPa. Entre más cercano a 0, más fiel es el modelo a la realidad observada.</p>
+          </div>
+          <div class="skill-card">
+            <h4>⚖️ BIAS (Sesgo Medio)</h4>
+            <p>Indica si el modelo sobrestima (+) o subestima (-) la intensidad barométrica del anticiclón respecto a las mediciones satelitales.</p>
+          </div>
+          <div class="skill-card">
+            <h4>📈 Correlación de Pearson (r)</h4>
+            <p>Evalúa si el modelo reproduce la sincronía temporal del ciclo sinóptico y estacional (1.0 = sincronía perfecta).</p>
+          </div>
+          <div class="skill-card">
+            <h4>🧭 Error Espacial y Willmott (d)</h4>
+            <p>La distancia media en km entre el centro predicho y el centro real. El índice <em>d</em> (0 a 1) resume la habilidad global del modelo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pie de Página Institucional y de Licenciamiento -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-left">
+        <p><strong>Laboratorio de Oceanografía Física (LOFA)</strong></p>
+        <p>Instituto de Ciencias Marinas y Limnológicas — Universidad Austral de Chile (UACh)</p>
+        <p class="footer-copy">Distribuido bajo licencia de software libre <strong>GNU AGPLv3</strong>. Código auditable y reproducible.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh" target="_blank" rel="noopener">GitHub LOFA</a>
+        <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-anticiclon-pacifico/blob/main/docs/METODOLOGIA.md" target="_blank" rel="noopener">Metodología</a>
+        <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-anticiclon-pacifico/blob/main/CITATION.cff" target="_blank" rel="noopener">Cómo Citar</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts del Dashboard con versión para evitar caché local -->
+  <script src="js/model_selector.js?v=2"></script>
+  <script src="js/maps.js?v=2"></script>
+  <script src="js/charts.js?v=2"></script>
+  <script src="js/main.js?v=2"></script>
+</body>
+</html>
