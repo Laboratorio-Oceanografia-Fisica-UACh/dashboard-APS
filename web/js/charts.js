@@ -1,26 +1,41 @@
 /**
  * charts.js
- * Visualización de series de tiempo científicas con Plotly.js
+ * Visualización de series de tiempo científicas multimodelo con Plotly.js
+ * Resuelve el bug de compresión vertical de leyenda y soporta presets climáticos históricos
  * Laboratorio de Oceanografía Física (LOFA) - UACh
  */
 
 class DashboardCharts {
-  constructor(modelSelector) {
+  constructor(modelSelector, onDateSelected = null) {
     this.modelSelector = modelSelector;
+    this.onDateSelected = onDateSelected;
     this.models = {};
     this.currentRange = '365';
+    this.customStartDate = null;
+    this.customEndDate = null;
 
     this.initControls();
   }
 
   initControls() {
+    // 1. Chips de intervalo temporal rápido
     const chipButtons = document.querySelectorAll('.chart-controls .btn-chip');
     chipButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const selectedRange = e.target.dataset.range;
         this.currentRange = selectedRange;
+        this.customStartDate = null;
+        this.customEndDate = null;
 
-        // Sincronizar todos los grupos de botones de chips
+        // Resetear inputs de fechas y select de presets
+        const presetSelect = document.getElementById('climatePresetsSelect');
+        if (presetSelect) presetSelect.value = '';
+        const fromInput = document.getElementById('chartDateFrom');
+        const toInput = document.getElementById('chartDateTo');
+        if (fromInput) fromInput.value = '';
+        if (toInput) toInput.value = '';
+
+        // Sincronizar todos los grupos de chips
         document.querySelectorAll('.chart-controls .btn-chip').forEach((b) => {
           b.classList.toggle('active', b.dataset.range === selectedRange);
         });
@@ -29,6 +44,64 @@ class DashboardCharts {
       });
     });
 
+    // 2. Presets climáticos científicos preconfigurados
+    const presetSelect = document.getElementById('climatePresetsSelect');
+    if (presetSelect) {
+      presetSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (!val) return;
+
+        // Desactivar chips rápidos
+        document.querySelectorAll('.chart-controls .btn-chip').forEach((b) => b.classList.remove('active'));
+
+        if (val === 'forecast') {
+          // Últimos 14 días (abarca pasado reciente + 7 días GFS)
+          this.currentRange = '14';
+          this.customStartDate = null;
+          this.customEndDate = null;
+        } else {
+          const [start, end] = val.split(':');
+          this.customStartDate = start;
+          this.customEndDate = end;
+          this.currentRange = 'custom';
+
+          const fromInput = document.getElementById('chartDateFrom');
+          const toInput = document.getElementById('chartDateTo');
+          if (fromInput) fromInput.value = start;
+          if (toInput) toInput.value = end;
+        }
+
+        this.updateCharts();
+
+        // Notificar fecha inicial del preset si hay callback
+        if (this.onDateSelected && this.customStartDate) {
+          this.onDateSelected(this.customStartDate);
+        }
+      });
+    }
+
+    // 3. Filtro por rango personalizado (Desde / Hasta)
+    const applyRangeBtn = document.getElementById('applyCustomDateRangeBtn');
+    if (applyRangeBtn) {
+      applyRangeBtn.addEventListener('click', () => {
+        const fromInput = document.getElementById('chartDateFrom');
+        const toInput = document.getElementById('chartDateTo');
+        if (fromInput && toInput && fromInput.value && toInput.value) {
+          this.customStartDate = fromInput.value;
+          this.customEndDate = toInput.value;
+          this.currentRange = 'custom';
+
+          document.querySelectorAll('.chart-controls .btn-chip').forEach((b) => b.classList.remove('active'));
+          this.updateCharts();
+
+          if (this.onDateSelected) {
+            this.onDateSelected(this.customStartDate);
+          }
+        }
+      });
+    }
+
+    // 4. Redimensionamiento adaptativo en ventanas
     window.addEventListener('resize', () => {
       Plotly.Plots.resize('positionChart');
       Plotly.Plots.resize('pressureChart');
@@ -38,12 +111,27 @@ class DashboardCharts {
   setData(modelsData) {
     this.models = modelsData;
     this.updateCharts();
+    this.attachClickEvents();
   }
 
   filterDataByRange(dates, values) {
+    if (this.currentRange === 'custom' && this.customStartDate && this.customEndDate) {
+      const filteredDates = [];
+      const filteredValues = [];
+      for (let i = 0; i < dates.length; i++) {
+        const d = dates[i];
+        if (d >= this.customStartDate && d <= this.customEndDate) {
+          filteredDates.push(d);
+          filteredValues.push(values[i]);
+        }
+      }
+      return { dates: filteredDates, values: filteredValues };
+    }
+
     if (this.currentRange === 'all') {
       return { dates, values };
     }
+
     const days = parseInt(this.currentRange, 10);
     const sliceIndex = Math.max(0, dates.length - days);
     return {
@@ -73,19 +161,19 @@ class DashboardCharts {
         x: latData.dates,
         y: latData.values,
         mode: 'lines',
-        name: `${model.name} (Latitud)`,
+        name: `${model.name} (Lat)`,
         line: { color: color, width: 2.0, shape: useSpline ? 'spline' : 'linear' },
         hovertemplate: '<b>%{x}</b><br>Latitud: %{y:.2f}°S<extra></extra>',
         yaxis: 'y1'
       });
 
-      // Traza Longitud (línea punteada para distinguir)
+      // Traza Longitud (línea discontinua)
       const lonData = this.filterDataByRange(model.dates, model.lon);
       traces.push({
         x: lonData.dates,
         y: lonData.values,
         mode: 'lines',
-        name: `${model.name} (Longitud)`,
+        name: `${model.name} (Lon)`,
         line: { color: color, width: 1.6, dash: 'dot', shape: useSpline ? 'spline' : 'linear' },
         hovertemplate: '<b>%{x}</b><br>Longitud: %{y:.2f}°W<extra></extra>',
         yaxis: 'y2'
@@ -94,19 +182,20 @@ class DashboardCharts {
 
     const showSlider = this.currentRange === 'all' || this.currentRange === '1825';
 
+    // Layout con leyenda ubicada en el borde inferior con paginación limpia (Solución Bug de Achatamiento)
     const layout = {
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'rgba(9, 15, 30, 0.6)',
       font: { family: 'Outfit, sans-serif', color: '#94a3b8' },
-      margin: { l: 50, r: 50, t: 30, b: showSlider ? 60 : 40 },
+      margin: { l: 50, r: 50, t: 25, b: showSlider ? 95 : 65 },
       showlegend: true,
       legend: {
         orientation: 'h',
-        yanchor: 'bottom',
-        y: 1.02,
-        xanchor: 'right',
-        x: 1,
-        font: { size: 10 }
+        yanchor: 'top',
+        y: showSlider ? -0.32 : -0.22,
+        xanchor: 'center',
+        x: 0.5,
+        font: { size: 10, color: '#cbd5e1' }
       },
       xaxis: {
         gridcolor: 'rgba(72, 110, 163, 0.15)',
@@ -158,19 +247,20 @@ class DashboardCharts {
 
     const showSlider = this.currentRange === 'all' || this.currentRange === '1825';
 
+    // Layout con leyenda ubicada en el borde inferior (Solución Bug de Achatamiento)
     const layout = {
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'rgba(9, 15, 30, 0.6)',
       font: { family: 'Outfit, sans-serif', color: '#94a3b8' },
-      margin: { l: 55, r: 25, t: 30, b: showSlider ? 60 : 40 },
+      margin: { l: 55, r: 25, t: 25, b: showSlider ? 95 : 65 },
       showlegend: true,
       legend: {
         orientation: 'h',
-        yanchor: 'bottom',
-        y: 1.02,
-        xanchor: 'right',
-        x: 1,
-        font: { size: 11 }
+        yanchor: 'top',
+        y: showSlider ? -0.32 : -0.22,
+        xanchor: 'center',
+        x: 0.5,
+        font: { size: 10, color: '#cbd5e1' }
       },
       xaxis: {
         gridcolor: 'rgba(72, 110, 163, 0.15)',
@@ -189,5 +279,25 @@ class DashboardCharts {
 
     const config = { responsive: true, displayModeBar: false };
     Plotly.react('pressureChart', traces, layout, config);
+  }
+
+  attachClickEvents() {
+    const bindPlotClick = (elementId) => {
+      const el = document.getElementById(elementId);
+      if (el && !el._hasClickBound) {
+        el._hasClickBound = true;
+        el.on('plotly_click', (data) => {
+          if (data && data.points && data.points.length > 0) {
+            const clickedDate = data.points[0].x;
+            if (this.onDateSelected && clickedDate) {
+              this.onDateSelected(clickedDate);
+            }
+          }
+        });
+      }
+    };
+
+    bindPlotClick('positionChart');
+    bindPlotClick('pressureChart');
   }
 }

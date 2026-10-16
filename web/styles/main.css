@@ -302,14 +302,66 @@ body {
 }
 
 /* ==========================================================================
-   Grid Principal del Dashboard
+   Barra de Control del Modelo en Foco
    ========================================================================== */
-.dashboard-grid {
-  flex: 1;
+.kpi-focus-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 2rem 0;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.kpi-focus-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.kpi-focus-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpi-select {
+  background: var(--bg-elevated);
+  color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.75rem;
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  transition: var(--transition);
+}
+
+.kpi-select:hover, .kpi-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
+}
+
+.kpi-focus-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   Secciones y Grids Principales (Mapas y Gráficos)
+   ========================================================================== */
+.maps-section, .charts-section {
+  padding: 0 2rem 1.75rem;
+}
+
+.maps-grid, .charts-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1.5rem;
-  padding: 0 2rem 2rem;
 }
 
 .grid-card {
@@ -330,6 +382,8 @@ body {
   align-items: flex-start;
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(14, 22, 42, 0.4);
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .card-title {
@@ -351,11 +405,211 @@ body {
   position: relative;
 }
 
-.map-container, .chart-container {
+.map-container {
   width: 100%;
   height: 100%;
-  min-height: 380px;
+  min-height: 420px;
   border-radius: var(--radius-sm);
+}
+
+/* Altura Fija y Robusta para Gráficos Científicos (Evita achatamiento) */
+.chart-body-fixed {
+  height: 460px;
+  min-height: 460px;
+  padding: 0.75rem;
+  position: relative;
+}
+
+.chart-container {
+  width: 100%;
+  height: 440px !important;
+  min-height: 440px !important;
+}
+
+/* ==========================================================================
+   Barra de Control Temporal y Reproductor Sinóptico
+   ========================================================================== */
+.timeline-bar-section {
+  margin-top: 1.25rem;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.4rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.timeline-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.timeline-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-time-control {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-time-control:hover {
+  background: var(--bg-card-hover);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.btn-play-pulse {
+  background: linear-gradient(135deg, #0077b6 0%, #00b4d8 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 180, 216, 0.35);
+}
+
+.btn-play-pulse.playing {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  animation: pulsePlay 1.5s infinite;
+}
+
+@keyframes pulsePlay {
+  0%, 100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.8); }
+}
+
+.timeline-slider-center {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.timeline-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.timeline-date-caption {
+  color: var(--text-muted);
+}
+
+.timeline-date-caption strong {
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  padding: 0.15rem 0.5rem;
+  background: rgba(0, 210, 255, 0.15);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 210, 255, 0.3);
+}
+
+.timeline-hint {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.time-range-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #1e293b;
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.timeline-datepicker-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timeline-picker-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.timeline-date-input, .chart-date-input {
+  background: var(--bg-elevated);
+  color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  transition: var(--transition);
+}
+
+.timeline-date-input:focus, .chart-date-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 8px rgba(0, 210, 255, 0.3);
+}
+
+/* ==========================================================================
+   Controles Avanzados de Series de Tiempo
+   ========================================================================== */
+.chart-controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.preset-select {
+  background: var(--bg-elevated);
+  color: var(--color-gold);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 20px;
+  padding: 0.3rem 0.75rem;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: var(--transition);
+}
+
+.preset-select:hover, .preset-select:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.custom-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.range-sep {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.btn-chip-apply {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+  padding: 0.3rem 0.65rem;
+}
+
+.btn-chip-apply:hover {
+  background: var(--color-primary-hover);
 }
 
 /* Personalización de Leaflet para tema oscuro */
@@ -881,10 +1135,79 @@ body {
 }
 
 /* ==========================================================================
+   Módulo de Citación Científica (APA / BibTeX) y Enlaces de Footer
+   ========================================================================== */
+.citation-copy-box {
+  background: rgba(8, 14, 30, 0.9);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.25rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.citation-text {
+  font-size: 0.9rem;
+  color: #e2e8f0;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.bibtex-pre {
+  background: rgba(4, 8, 18, 0.95);
+  border: 1px solid rgba(72, 110, 163, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  color: #00d2ff;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0;
+}
+
+.btn-copy {
+  align-self: flex-start;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-copy:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 10px rgba(0, 180, 216, 0.3);
+}
+
+.footer-link-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-family: var(--font-main);
+  transition: var(--transition);
+  padding: 0;
+}
+
+.footer-link-btn:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* ==========================================================================
    Diseño Responsivo (Tablets y Móviles)
    ========================================================================== */
 @media (max-width: 1080px) {
-  .dashboard-grid {
+  .maps-grid, .charts-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -899,8 +1222,13 @@ body {
 
   .navbar-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
     flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .kpi-focus-bar {
+    padding: 0.5rem 1rem 0;
   }
 
   .metrics-summary {
@@ -908,8 +1236,26 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-grid {
+  .maps-section, .charts-section {
     padding: 0 1rem 1rem;
+  }
+
+  .timeline-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timeline-controls-left {
+    justify-content: center;
+  }
+
+  .timeline-datepicker-right {
+    justify-content: center;
+  }
+
+  .chart-controls-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .footer-content {

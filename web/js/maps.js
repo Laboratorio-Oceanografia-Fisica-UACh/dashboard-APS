@@ -3,6 +3,7 @@
  * Visualización geoespacial interactiva del APS y anomalías con Leaflet.js
  * Capa cartográfica científica libre de marcas de agua, con rejilla de coordenadas (Graticule)
  * y georreferenciación costera de Chile, Perú e islas del Pacífico Sur.
+ * Dominio espacial ampliado LOFA: 10°S a 56°S, 130°W a 65°W
  * Laboratorio de Oceanografía Física (LOFA) - UACh
  */
 
@@ -11,15 +12,17 @@ class DashboardMaps {
     this.pressureMap = null;
     this.anomalyMap = null;
     this.centerMarker = null;
+    this.anomalyCenterMarker = null;
     this.isobarLayer = null;
     this.anomalyLayer = null;
+    this.currentDate = null;
 
     this.initMaps();
   }
 
   initMaps() {
-    // Vista inicial centrada en el Pacífico Suroriental y la costa chilena
-    const initialView = [-32.0, -88.0];
+    // Vista inicial centrada en el Pacífico Suroriental y la costa chilena (dominio ampliado)
+    const initialView = [-34.0, -92.0];
     const initialZoom = 3.6;
 
     // Servidor de teselas cartográficas ESRI Dark Gray Canvas (Cero marcas de agua, libre y de alta definición)
@@ -55,7 +58,7 @@ class DashboardMaps {
     this.addCoordinateGraticule(this.pressureMap);
     this.addCoordinateGraticule(this.anomalyMap);
 
-    // Agregar Referencias Costeras e Islas Oceánicas
+    // Agregar Referencias Costeras e Islas Oceánicas (Incluye Patagonia y Drake)
     this.addOceanographicLandmarks(this.pressureMap);
     this.addOceanographicLandmarks(this.anomalyMap);
 
@@ -69,22 +72,22 @@ class DashboardMaps {
   }
 
   /**
-   * Dibuja líneas de meridianos y paralelos con etiquetas visibles
+   * Dibuja líneas de meridianos y paralelos con etiquetas visibles adaptadas al dominio extendido (10°S a 56°S, 130°W a 65°W)
    */
   addCoordinateGraticule(mapInstance) {
     const graticuleGroup = L.layerGroup().addTo(mapInstance);
 
-    // Paralelos (Latitudes de 10°S a 50°S cada 5°)
-    const latitudes = [-15, -20, -25, -30, -35, -40, -45, -50];
+    // Paralelos (Latitudes de 10°S a 55°S cada 5°)
+    const latitudes = [-15, -20, -25, -30, -35, -40, -45, -50, -55];
     latitudes.forEach(lat => {
       L.polyline([[lat, -135], [lat, -65]], {
-        color: 'rgba(148, 163, 184, 0.25)',
+        color: 'rgba(148, 163, 184, 0.22)',
         weight: 1,
         dashArray: '3, 4'
       }).addTo(graticuleGroup);
 
-      // Etiqueta fija en el borde oeste
-      L.marker([lat, -125], {
+      // Etiqueta fija en el flanco oeste
+      L.marker([lat, -132], {
         icon: L.divIcon({
           className: 'graticule-label',
           html: `${Math.abs(lat)}°S`,
@@ -95,17 +98,17 @@ class DashboardMaps {
       }).addTo(graticuleGroup);
     });
 
-    // Meridianos (Longitudes de 120°W a 70°W cada 10°)
-    const longitudes = [-120, -110, -100, -90, -80, -70];
+    // Meridianos (Longitudes de 130°W a 70°W cada 10°)
+    const longitudes = [-130, -120, -110, -100, -90, -80, -70];
     longitudes.forEach(lon => {
-      L.polyline([[-8, lon], [-52, lon]], {
-        color: 'rgba(148, 163, 184, 0.25)',
+      L.polyline([[-8, lon], [-58, lon]], {
+        color: 'rgba(148, 163, 184, 0.22)',
         weight: 1,
         dashArray: '3, 4'
       }).addTo(graticuleGroup);
 
       // Etiqueta fija en el borde norte
-      L.marker([-11, lon], {
+      L.marker([-10, lon], {
         icon: L.divIcon({
           className: 'graticule-label',
           html: `${Math.abs(lon)}°W`,
@@ -118,7 +121,7 @@ class DashboardMaps {
   }
 
   /**
-   * Puntos de referencia geográfica, puertos costeros e islas oceánicas
+   * Puntos de referencia geográfica, puertos costeros e islas oceánicas extendidas hasta el Cabo de Hornos
    */
   addOceanographicLandmarks(mapInstance) {
     const landmarks = [
@@ -128,20 +131,29 @@ class DashboardMaps {
       { name: 'Valparaíso', coords: [-33.04, -71.62], type: 'port' },
       { name: 'Concepción', coords: [-36.82, -73.05], type: 'port' },
       { name: 'Puerto Montt', coords: [-41.47, -72.94], type: 'port' },
+      { name: 'Castro (Chiloé)', coords: [-42.48, -73.77], type: 'port' },
+      { name: 'Golfo de Penas', coords: [-47.20, -75.00], type: 'oceanic' },
+      { name: 'Punta Arenas (Magallanes)', coords: [-53.16, -70.91], type: 'port' },
+      { name: 'Cabo de Hornos / Drake', coords: [-55.98, -67.27], type: 'oceanic' },
       { name: 'Archipiélago Juan Fernández', coords: [-33.64, -78.83], type: 'island' },
       { name: 'Rapa Nui (Isla de Pascua)', coords: [-27.12, -109.35], type: 'island' }
     ];
 
     landmarks.forEach(l => {
       const isIsland = l.type === 'island';
+      const isOceanic = l.type === 'oceanic';
+      const markerColor = isIsland ? '#00d2ff' : (isOceanic ? '#ec4899' : '#f59e0b');
+
       const marker = L.circleMarker(l.coords, {
-        radius: isIsland ? 4.5 : 3.5,
-        color: isIsland ? '#00d2ff' : '#f59e0b',
+        radius: isIsland ? 4.5 : (isOceanic ? 4.0 : 3.5),
+        color: markerColor,
         fillColor: '#ffffff',
         fillOpacity: 0.95,
         weight: 1.5
       });
-      marker.bindTooltip(`${isIsland ? '🏝️' : '⚓'} ${l.name}`, {
+
+      const iconSymbol = isIsland ? '🏝️' : (isOceanic ? '🌊' : '⚓');
+      marker.bindTooltip(`${iconSymbol} ${l.name}`, {
         direction: 'right',
         className: 'coastal-landmark',
         offset: [6, 0]
@@ -169,16 +181,20 @@ class DashboardMaps {
     container.appendChild(legend);
   }
 
-  updatePressureMap(centerLat, centerLon, maxPressure) {
+  /**
+   * Actualiza el Mapa de Presión con el centro sinóptico 'A' y las isobaras concéntricas
+   */
+  updatePressureMap(centerLat, centerLon, maxPressure, dateStr = null) {
     this.isobarLayer.clearLayers();
+    this.currentDate = dateStr;
 
     // Marcador Sinóptico del Núcleo Bárico del Anticiclón (Símbolo 'A' con pulso ámbar)
     const centerIcon = L.divIcon({
       className: 'aps-synoptic-center',
       html: `
         <div style="
-          width: 32px; 
-          height: 32px; 
+          width: 34px; 
+          height: 34px; 
           background: rgba(245, 158, 11, 0.95); 
           border: 2px solid #ffffff; 
           border-radius: 50%; 
@@ -189,25 +205,28 @@ class DashboardMaps {
           color: #0b1120;
           font-weight: 900;
           font-family: Outfit, sans-serif;
-          font-size: 16px;
+          font-size: 17px;
         ">A</div>
       `,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
     });
+
+    const dateNotice = dateStr ? `<div style="color: #64748b; font-size: 11px; margin-bottom: 3px;">Fecha: <b>${dateStr}</b></div>` : '';
 
     this.centerMarker = L.marker([centerLat, centerLon], { icon: centerIcon })
       .bindPopup(`
         <div style="font-family: Outfit, sans-serif; color: #080e1e; padding: 6px; font-size: 13px;">
           <strong style="color: #0284c7; font-size: 14px;">Núcleo Bárico del APS</strong><br>
-          <b>Presión Central:</b> ${maxPressure} hPa<br>
+          ${dateNotice}
+          <b>Presión Central:</b> ${maxPressure.toFixed(1)} hPa<br>
           <b>Coordenadas:</b> ${Math.abs(centerLat).toFixed(2)}°S, ${Math.abs(centerLon).toFixed(2)}°W<br>
-          <span style="color: #64748b; font-size: 11px;">Masa de aire subsidente subtropical</span>
+          <span style="color: #64748b; font-size: 11px;">Masa de aire subsidente subtropical/subantártica</span>
         </div>
       `)
       .addTo(this.isobarLayer);
 
-    // Isobaras sinópticas realistas (1028, 1024, 1020, 1016, 1012 hPa) con elipses meridionales
+    // Isobaras sinópticas realistas (1028, 1024, 1020, 1016, 1012 hPa) con elipses meteorológicas
     const isobarLevels = [
       { p: 1028, rLat: 3.2, rLon: 5.5, color: '#f59e0b', weight: 2.2, dash: 'solid' },
       { p: 1024, rLat: 6.8, rLon: 11.5, color: '#00d2ff', weight: 2.0, dash: 'solid' },
@@ -218,10 +237,10 @@ class DashboardMaps {
 
     isobarLevels.forEach(iso => {
       if (maxPressure >= iso.p - 1.2) {
-        // Generar puntos para elipse meteorológica realista orientada NW-SE
+        // Generar puntos para elipse meteorológica orientada NW-SE hacia Chile central
         const points = [];
         const numPoints = 64;
-        const tiltRad = -0.22; // Inclinación sinóptica hacia la costa de Chile central
+        const tiltRad = -0.22;
         
         for (let i = 0; i <= numPoints; i++) {
           const theta = (i / numPoints) * 2 * Math.PI;
@@ -260,10 +279,14 @@ class DashboardMaps {
 
     const badge = document.getElementById('mapCenterCoordBadge');
     if (badge) {
-      badge.textContent = `Núcleo: ${Math.abs(centerLat).toFixed(1)}°S, ${Math.abs(centerLon).toFixed(1)}°W (${maxPressure} hPa)`;
+      const dateStrPrefix = dateStr ? `[${dateStr}] ` : '';
+      badge.textContent = `${dateStrPrefix}Núcleo: ${Math.abs(centerLat).toFixed(1)}°S, ${Math.abs(centerLon).toFixed(1)}°W (${maxPressure.toFixed(1)} hPa)`;
     }
   }
 
+  /**
+   * Actualiza el Mapa de Anomalías con la cuadrícula espacial y el contorno del dominio extendido LOFA
+   */
   updateAnomalyMap(centerLat, centerLon, spatialGrid) {
     this.anomalyLayer.clearLayers();
     if (!spatialGrid || !spatialGrid.current_anomaly) return;
@@ -316,12 +339,22 @@ class DashboardMaps {
       }
     }
 
-    // Contorno del dominio de estudio del APS
-    L.rectangle([[-48.0, -120.0], [-10.0, -70.0]], {
+    // Contorno del dominio de estudio del APS extendido (10°S a 56°S y 130°W a 65°W)
+    L.rectangle([[-56.0, -130.0], [-10.0, -65.0]], {
       color: '#00d2ff',
       weight: 1.5,
       dashArray: '5, 5',
       fill: false
     }).addTo(this.anomalyLayer);
+
+    // Marcador sutil de posición del centro en el mapa de anomalías
+    this.anomalyCenterMarker = L.circleMarker([centerLat, centerLon], {
+      radius: 6,
+      color: '#ffffff',
+      fillColor: '#f59e0b',
+      fillOpacity: 0.9,
+      weight: 2
+    }).bindTooltip(`Centro Bárico APS: ${Math.abs(centerLat).toFixed(1)}°S, ${Math.abs(centerLon).toFixed(1)}°W`, { direction: 'top' })
+      .addTo(this.anomalyLayer);
   }
 }
