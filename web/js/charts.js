@@ -55,10 +55,22 @@ class DashboardCharts {
         document.querySelectorAll('.chart-controls .btn-chip').forEach((b) => b.classList.remove('active'));
 
         if (val === 'forecast') {
-          // Últimos 14 días (abarca pasado reciente + 7 días GFS)
-          this.currentRange = '14';
-          this.customStartDate = null;
-          this.customEndDate = null;
+          // Activar modelo GFS y enfocar ventana temporal del pronóstico
+          const gfsModel = Object.values(this.models).find(m => m.id === 'noaa_gfs_forecast');
+          if (gfsModel && gfsModel.dates && gfsModel.dates.length > 0) {
+            this.modelSelector.selectedModelIds.add('noaa_gfs_forecast');
+            this.customStartDate = gfsModel.dates[0];
+            this.customEndDate = gfsModel.dates[gfsModel.dates.length - 1];
+            this.currentRange = 'custom';
+            const fromInput = document.getElementById('chartDateFrom');
+            const toInput = document.getElementById('chartDateTo');
+            if (fromInput) fromInput.value = this.customStartDate;
+            if (toInput) toInput.value = this.customEndDate;
+          } else {
+            this.currentRange = '14';
+            this.customStartDate = null;
+            this.customEndDate = null;
+          }
         } else {
           const [start, end] = val.split(':');
           this.customStartDate = start;

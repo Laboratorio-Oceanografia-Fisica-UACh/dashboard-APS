@@ -73,8 +73,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function initTimelineDates() {
     const primaryModel = rawData.models['ERA5 Reanálisis'] || Object.values(rawData.models)[0];
-    if (primaryModel && primaryModel.dates && primaryModel.dates.length > 0) {
-      timelineDates = primaryModel.dates;
+    const gfsModel = rawData.models['NOAA GFS Pronóstico'] || Object.values(rawData.models).find(m => m.id === 'noaa_gfs_forecast');
+
+    const datesSet = new Set();
+    if (primaryModel && primaryModel.dates) {
+      primaryModel.dates.forEach(d => datesSet.add(d));
+    }
+    if (gfsModel && gfsModel.dates) {
+      gfsModel.dates.forEach(d => datesSet.add(d));
+    }
+
+    if (datesSet.size > 0) {
+      timelineDates = Array.from(datesSet).sort();
     } else {
       timelineDates = [new Date().toISOString().split('T')[0]];
     }
@@ -187,7 +197,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activeDateLabel = document.getElementById('timelineActiveDate');
     const datePicker = document.getElementById('timelineDatePicker');
 
-    if (activeDateLabel) activeDateLabel.textContent = activeDate;
+    const gfsModel = rawData.models['NOAA GFS Pronóstico'] || Object.values(rawData.models).find(m => m.id === 'noaa_gfs_forecast');
+    const isForecast = !!(gfsModel && gfsModel.dates && gfsModel.dates.includes(activeDate));
+
+    if (activeDateLabel) {
+      if (isForecast) {
+        const fcIdx = gfsModel.dates.indexOf(activeDate);
+        const hours = fcIdx * 24;
+        activeDateLabel.innerHTML = `${activeDate} <span class="timeline-forecast-badge">📡 GFS +${hours}h</span>`;
+      } else {
+        activeDateLabel.textContent = activeDate;
+      }
+    }
     if (datePicker) datePicker.value = activeDate;
 
     updateKpis();
@@ -353,7 +374,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (kpiDate) kpiDate.textContent = activeDate;
     if (kpiAnomalySub) kpiAnomalySub.textContent = `Respecto a normal climática (${climBaseline.toFixed(1)} hPa)`;
-    if (kpiDateSub && rawData.metadata && rawData.metadata.time_coverage) {
+    
+    // Si estamos en fecha de pronóstico GFS, actualizar detalles informativos
+    const gfsModel = rawData.models['NOAA GFS Pronóstico'] || Object.values(rawData.models).find(m => m.id === 'noaa_gfs_forecast');
+    const isForecast = !!(gfsModel && gfsModel.dates && gfsModel.dates.includes(activeDate));
+    if (isForecast && gfsModel) {
+      const dIdx = gfsModel.dates.indexOf(activeDate);
+      const hours = dIdx * 24;
+      if (kpiModelFocus) kpiModelFocus.innerHTML = `📡 Pronóstico NOAA GFS (+${hours}h)`;
+      if (kpiDateSub) kpiDateSub.textContent = `Paso de Pronóstico Numérico GFS (+${hours} horas)`;
+    } else if (kpiDateSub && rawData.metadata && rawData.metadata.time_coverage) {
       kpiDateSub.textContent = `Registro: ${rawData.metadata.time_coverage.start} a ${rawData.metadata.time_coverage.end}`;
     }
   }
@@ -362,14 +392,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!mapsInstance || !rawData || timelineDates.length === 0) return;
 
     const activeDate = timelineDates[currentDateIndex];
+    const gfsModel = rawData.models['NOAA GFS Pronóstico'] || Object.values(rawData.models).find(m => m.id === 'noaa_gfs_forecast');
+    const isForecast = !!(gfsModel && gfsModel.dates && gfsModel.dates.includes(activeDate));
+
     let lat = -33.5;
     let lon = -91.0;
     let p = 1024.0;
 
-    // Obtener coordenadas del modelo enfocado o ERA5
-    let targetModel = Object.values(rawData.models).find(m => m.id === focusedModelId);
-    if (!targetModel || focusedModelId === 'ensemble') {
-      targetModel = rawData.models['ERA5 Reanálisis'] || Object.values(rawData.models)[0];
+    // Obtener coordenadas del modelo enfocado o GFS si es fecha de pronóstico
+    let targetModel = null;
+    if (isForecast && gfsModel) {
+      targetModel = gfsModel;
+    } else {
+      targetModel = Object.values(rawData.models).find(m => m.id === focusedModelId);
+      if (!targetModel || focusedModelId === 'ensemble') {
+        targetModel = rawData.models['ERA5 Reanálisis'] || Object.values(rawData.models)[0];
+      }
     }
 
     if (targetModel && targetModel.dates) {
@@ -385,8 +423,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    mapsInstance.updatePressureMap(lat, lon, p, activeDate);
-    mapsInstance.updateAnomalyMap(lat, lon, rawData.spatial_grid);
+    const upwellingMetrics = mapsInstance.updatePressureMap(lat, lon, p, activeDate, isForecast, rawData.spatial_grid);
+    const climBaseline = getClimatologyForDate(activeDate);
+    mapsInstance.updateAnomalyMap(lat, lon, rawData.spatial_grid, activeDate, climBaseline);
+
+    updateUpwellingUI(upwellingMetrics);
+  }
+
+  function updateUpwellingUI(metrics) {
+    if (!metrics || metrics.length === 0) return;
+
+    const grid = document.getElementById('upwellingStationsGrid');
+    if (grid) {
+      grid.innerHTML = metrics.map(m => `
+        <div class="upwelling-station-card" onclick="document.getElementById('openUpwellingModalBtn').click()" title="Ver dinámica de surgencia en ${m.name}">
+          <div class="station-card-top">
+            <span class="station-name">⚓ ${m.name}</span>
+            <span class="badge-ui ${m.statusClass}">${m.statusText.split(' ')[0]}</span>
+          </div>
+          <span class="station-region">${m.region}</span>
+          <div class="station-card-metrics">
+            <span class="station-ui-value" style="color: ${m.statusColor};">
+              ${m.ui > 0 ? '+' : ''}${Math.round(m.ui)} <small style="font-size: 0.72rem; font-weight: 400; color: #94a3b8;">m³/(s·km)</small>
+            </span>
+            <span class="station-wind-value">
+              ${m.speedKnots.toFixed(1)} kt (${m.v10 >= 0 ? 'Sur' : 'Norte'})
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    const modalTableBody = document.getElementById('upwellingModalTableBody');
+    if (modalTableBody) {
+      modalTableBody.innerHTML = metrics.map(m => `
+        <tr>
+          <td><strong>⚓ ${m.name}</strong></td>
+          <td>${m.region}</td>
+          <td>${Math.abs(m.coords[0]).toFixed(2)}°S</td>
+          <td style="font-family: var(--font-mono);">${(m.dpDx * 1000).toFixed(2)} mPa/m</td>
+          <td style="font-family: var(--font-mono);">${m.speedKnots.toFixed(1)} kt (${m.v10 >= 0 ? 'S' : 'N'})</td>
+          <td style="font-family: var(--font-mono);">${m.tauY.toFixed(3)} N/m²</td>
+          <td style="font-family: var(--font-mono); font-weight: 700; color: ${m.statusColor};">
+            ${m.ui > 0 ? '+' : ''}${Math.round(m.ui)} m³/(s·km)
+          </td>
+          <td><span class="badge-ui ${m.statusClass}">${m.statusText}</span></td>
+        </tr>
+      `).join('');
+    }
   }
 
   // =========================================================================
@@ -452,6 +536,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (openCitationBtn) openCitationBtn.addEventListener('click', () => openModal('citationModalOverlay'));
     if (footerCitationBtn) footerCitationBtn.addEventListener('click', () => openModal('citationModalOverlay'));
 
+    // 5. Modal Dinámica de Surgencia Costera (UI)
+    const openUpwellingBtn = document.getElementById('openUpwellingModalBtn');
+    const ribbonOpenUpwellingBtn = document.getElementById('ribbonOpenUpwellingModalBtn');
+    if (openUpwellingBtn) openUpwellingBtn.addEventListener('click', () => openModal('upwellingModalOverlay'));
+    if (ribbonOpenUpwellingBtn) ribbonOpenUpwellingBtn.addEventListener('click', () => openModal('upwellingModalOverlay'));
+
+    // 6. Botón alternador de capa de surgencia en mapa
+    const toggleUpwellingBtn = document.getElementById('toggleUpwellingLayerBtn');
+    if (toggleUpwellingBtn) {
+      toggleUpwellingBtn.addEventListener('click', () => {
+        const active = mapsInstance.toggleUpwellingLayer();
+        toggleUpwellingBtn.classList.toggle('active', active);
+      });
+    }
+
     // Copiar Citas al portapapeles con feedback
     const copyApaBtn = document.getElementById('copyApaBtn');
     if (copyApaBtn) {
@@ -502,10 +601,41 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Tecla ESC para cerrar cualquier modal abierto
+    // 7. Menú Desplegable Institucional de Documentación y Enlaces
+    const navDocsDropdownBtn = document.getElementById('navDocsDropdownBtn');
+    const navDocsDropdownMenu = document.getElementById('navDocsDropdownMenu');
+    if (navDocsDropdownBtn && navDocsDropdownMenu) {
+      navDocsDropdownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = navDocsDropdownMenu.classList.toggle('show');
+        navDocsDropdownBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+
+      // Cerrar al hacer clic en cualquier opción dentro del menú
+      navDocsDropdownMenu.querySelectorAll('.nav-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+          navDocsDropdownMenu.classList.remove('show');
+          navDocsDropdownBtn.setAttribute('aria-expanded', 'false');
+        });
+      });
+
+      // Cerrar al hacer clic fuera del dropdown
+      document.addEventListener('click', (e) => {
+        if (!navDocsDropdownMenu.contains(e.target) && e.target !== navDocsDropdownBtn) {
+          navDocsDropdownMenu.classList.remove('show');
+          navDocsDropdownBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    // Tecla ESC para cerrar cualquier modal abierto o menú desplegable
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeAllModals();
+        if (navDocsDropdownMenu) {
+          navDocsDropdownMenu.classList.remove('show');
+          if (navDocsDropdownBtn) navDocsDropdownBtn.setAttribute('aria-expanded', 'false');
+        }
       }
     });
   }

@@ -1,31 +1,38 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Observatorio del Anticiclón del Pacífico Sur (APS) | LOFA - UACh</title>
-  <meta name="description" content="Observatorio y dashboard científico multimodelo de acceso abierto para el monitoreo, análisis, dinámica sinóptica y pronóstico del Anticiclón del Pacífico Sur (APS). Laboratorio de Oceanografía Física, Universidad Austral de Chile.">
+  <meta name="description"
+    content="Observatorio y dashboard científico multimodelo de acceso abierto para el monitoreo, análisis, dinámica sinóptica y pronóstico del Anticiclón del Pacífico Sur (APS). Laboratorio de Oceanografía Física, Universidad Austral de Chile.">
   <meta name="author" content="Laboratorio de Oceanografía Física (LOFA) - Universidad Austral de Chile">
-  
+
   <!-- Favicon e Identidad -->
   <link rel="icon" type="image/png" href="assets/img/logo_lofa.png">
 
   <!-- Fuentes e Iconos -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
   <!-- Leaflet CSS (Mapas) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
   <!-- Estilos Principales -->
   <link rel="stylesheet" href="styles/main.css?v=2.1">
-  
+
   <!-- Plotly.js (Gráficos científicos interactivos) -->
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
+
 <body>
   <!-- Encabezado Institucional -->
   <header class="navbar">
@@ -41,55 +48,70 @@
       <!-- Selector multimodelo -->
       <button id="toggleModelDrawerBtn" class="btn btn-primary" title="Abrir selector y comparador de modelos">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 20v-6M6 20V10M18 20V4"/>
+          <path d="M12 20v-6M6 20V10M18 20V4" />
         </svg>
         <span>Modelos (<span id="selectedModelsCount">2</span>)</span>
       </button>
 
       <!-- Validación Estadística Inter-modelo -->
-      <button id="openValidationModalBtn" class="btn btn-secondary" title="Ver tabla de habilidad estadística y métricas de error (RMSE, BIAS, r, Willmott)">
+      <button id="openValidationModalBtn" class="btn btn-secondary"
+        title="Ver tabla de habilidad estadística y métricas de error (RMSE, BIAS, r, Willmott)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 20V10M12 20V4M6 20v-6"/>
+          <path d="M18 20V10M12 20V4M6 20v-6" />
         </svg>
-        <span>Validación Estadística</span>
-      </button>
-
-      <!-- Metodología Científica (Modal Interactivo) -->
-      <button id="openMethodologyModalBtn" class="btn btn-secondary" title="Ver metodología científica, balance de fuerzas y formulación física">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-        </svg>
-        <span>Metodología</span>
-      </button>
-
-      <!-- Cómo Citar (Modal Interactivo) -->
-      <button id="openCitationModalBtn" class="btn btn-secondary" title="Ver formatos de citación científica (APA, BibTeX, CFF)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M6 9V2h12v7"></path>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-          <rect x="6" y="14" width="12" height="8"></rect>
-        </svg>
-        <span>Cómo Citar</span>
+        <span>Validación</span>
       </button>
 
       <!-- Descarga de datos científicos (Ciencia Abierta) -->
-      <a href="data/aps_multimodel_metrics_lofa.csv" download="aps_multimodel_metrics_lofa.csv" class="btn btn-secondary" title="Descargar serie temporal multimodelo consolidada en CSV">
+      <a href="data/aps_multimodel_metrics_lofa.csv" download="aps_multimodel_metrics_lofa.csv"
+        class="btn btn-secondary" title="Descargar serie temporal multimodelo consolidada en CSV">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
         </svg>
         <span>Datos CSV</span>
       </a>
 
-      <!-- Código en GitHub -->
-      <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-anticiclon-pacifico" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" title="Ver código fuente auditable en GitHub">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-        </svg>
-        <span>Código Libre</span>
-      </a>
+      <!-- Menú Desplegable Institucional de Documentación y Código -->
+      <div class="nav-dropdown-wrapper" id="navDocsDropdownWrapper">
+        <button id="navDocsDropdownBtn" class="btn btn-secondary nav-dropdown-btn"
+          title="Ver metodología, citación y código fuente" aria-haspopup="true" aria-expanded="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <span>Documentación ▾</span>
+        </button>
+        <div class="nav-dropdown-menu" id="navDocsDropdownMenu" role="menu">
+          <button class="nav-dropdown-item" id="openMethodologyModalBtn" role="menuitem">
+            <span class="dropdown-item-icon">🔬</span>
+            <div class="dropdown-item-content">
+              <strong>Metodología Científica</strong>
+              <small>Formulación física, balance y ecuaciones</small>
+            </div>
+          </button>
+          <button class="nav-dropdown-item" id="openCitationModalBtn" role="menuitem">
+            <span class="dropdown-item-icon">📖</span>
+            <div class="dropdown-item-content">
+              <strong>Cómo Citar</strong>
+              <small>Formatos APA 7ª, BibTeX y CFF</small>
+            </div>
+          </button>
+          <div class="nav-dropdown-divider"></div>
+          <a class="nav-dropdown-item" href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-APS"
+            target="_blank" rel="noopener noreferrer" role="menuitem">
+            <span class="dropdown-item-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: block;">
+                <path
+                  d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+              </svg>
+            </span>
+            <div class="dropdown-item-content">
+              <strong>Código Libre</strong>
+              <small>Repositorio oficial de LOFA-UACh</small>
+            </div>
+          </a>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -112,7 +134,8 @@
     <div class="metric-card">
       <div class="metric-header">
         <span class="metric-label">Presión Máxima (PSA)</span>
-        <button class="kpi-info-trigger" data-modal="modalPressure" title="Ver explicación física del gradiente barométrico y viento geostrófico">ℹ️</button>
+        <button class="kpi-info-trigger" data-modal="modalPressure"
+          title="Ver explicación física del gradiente barométrico y viento geostrófico">ℹ️</button>
       </div>
       <div class="metric-value" id="kpiPressure">-- <small>hPa</small></div>
       <span class="metric-sub" id="kpiModelFocus">Centro del anticiclón</span>
@@ -122,7 +145,8 @@
     <div class="metric-card">
       <div class="metric-header">
         <span class="metric-label">Posición del Centro Bárico</span>
-        <button class="kpi-info-trigger" data-modal="modalPosition" title="Ver dinámica de migración estacional y celda de Hadley">ℹ️</button>
+        <button class="kpi-info-trigger" data-modal="modalPosition"
+          title="Ver dinámica de migración estacional y celda de Hadley">ℹ️</button>
       </div>
       <div class="metric-value" id="kpiPosition">--°S, --°W</div>
       <span class="metric-sub" id="kpiPositionSub">Océano Pacífico Suroriental</span>
@@ -132,7 +156,8 @@
     <div class="metric-card">
       <div class="metric-header">
         <span class="metric-label">Anomalía Superficial</span>
-        <button class="kpi-info-trigger" data-modal="modalAnomaly" title="Ver física de anomalías climáticas, bloqueos y ondas de calor marinas">ℹ️</button>
+        <button class="kpi-info-trigger" data-modal="modalAnomaly"
+          title="Ver física de anomalías climáticas, bloqueos y ondas de calor marinas">ℹ️</button>
       </div>
       <div class="metric-value" id="kpiAnomaly">-- <small>hPa</small></div>
       <span class="metric-sub" id="kpiAnomalySub">Respecto a climatología histórica del día</span>
@@ -142,9 +167,10 @@
     <div class="metric-card">
       <div class="metric-header">
         <span class="metric-label">Fecha Activa / Registro</span>
-        <button class="kpi-info-trigger" data-modal="modalCoverage" title="Ver detalles de cobertura temporal y control de calidad">ℹ️</button>
+        <button class="kpi-info-trigger" data-modal="modalCoverage"
+          title="Ver detalles de cobertura temporal y control de calidad">ℹ️</button>
       </div>
-      <div class="metric-value" id="kpiDate" style="font-size: 1.35rem; font-family: var(--font-mono);">--</div>
+      <div class="metric-value" id="kpiDate" style="font-family: var(--font-mono);">--</div>
       <span class="metric-sub" id="kpiDateSub">Registro multidecadal LOFA</span>
     </div>
   </section>
@@ -156,10 +182,20 @@
       <div class="grid-card map-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Mapa de Presión Atmosférica (PA) e Isobaras Dinámicas</h2>
-            <p class="card-desc">Campo barométrico, núcleo sinóptico "A" e isobaras (1012–1028 hPa) en dominio 10°S–56°S</p>
+            <h2 class="card-title">Mapa de Presión Atmosférica (PA) e Isobaras Sinópticas</h2>
+            <p class="card-desc">Campo barométrico 2D, curvas de nivel (Marching Squares 1012–1028 hPa) y vectores de
+              viento</p>
           </div>
-          <span class="badge badge-accent" id="mapCenterCoordBadge">Núcleo: Buscando...</span>
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <button id="toggleUpwellingLayerBtn" class="btn-toggle-layer active"
+              title="Alternar visualización de vectores de viento costero">
+              ↗️ Vectores Viento
+            </button>
+            <button id="openUpwellingModalBtn" class="btn-toggle-layer"
+              title="Ver tabla de dinámica oceanográfica de surgencia costera (Índice de Bakun UI) y transporte de Ekman">
+              🌊 Datos Surgencia (UI)
+            </button>
+          </div>
         </div>
         <div class="card-body">
           <div id="pressureMap" class="map-container"></div>
@@ -171,7 +207,8 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">Mapa de Anomalías de Presión Superficial</h2>
-            <p class="card-desc">Desviación barométrica respecto al promedio climatológico (Rojo: Bloqueo | Azul: Relajación)</p>
+            <p class="card-desc">Desviación barométrica respecto al promedio climatológico (Rojo: Bloqueo | Azul:
+              Relajación)</p>
           </div>
           <span class="badge badge-info">Climatología LOFA Base</span>
         </div>
@@ -188,7 +225,8 @@
         <div class="timeline-controls-left">
           <button id="timeBtnFirst" class="btn-time-control" title="Saltar al primer día del registro">|◄</button>
           <button id="timeBtnPrev" class="btn-time-control" title="Día anterior (Paso -1)">◄</button>
-          <button id="timeBtnPlay" class="btn-time-control btn-play-pulse" title="Iniciar reproducción continua de la evolución del APS">▶ Play</button>
+          <button id="timeBtnPlay" class="btn-time-control btn-play-pulse"
+            title="Iniciar reproducción continua de la evolución del APS">▶ Play</button>
           <button id="timeBtnNext" class="btn-time-control" title="Día siguiente (Paso +1)">►</button>
           <button id="timeBtnLast" class="btn-time-control" title="Saltar al último día del registro">►|</button>
         </div>
@@ -201,7 +239,8 @@
             </span>
             <span class="timeline-hint">💡 Clic en cualquier punto de los gráficos para sincronizar los mapas</span>
           </div>
-          <input type="range" id="timelineSlider" min="0" max="100" value="100" class="time-range-slider" aria-label="Línea de tiempo sinóptica">
+          <input type="range" id="timelineSlider" min="0" max="100" value="100" class="time-range-slider"
+            aria-label="Línea de tiempo sinóptica">
         </div>
 
         <!-- Selector Directo de Fecha -->
@@ -225,7 +264,8 @@
           </div>
           <div class="chart-controls-wrapper">
             <!-- Selector de Presets Climáticos Científicos -->
-            <select id="climatePresetsSelect" class="preset-select" title="Cargar eventos climáticos históricos documentados">
+            <select id="climatePresetsSelect" class="preset-select"
+              title="Cargar eventos climáticos históricos documentados">
               <option value="">⚡ Presets Climáticos...</option>
               <option value="1997-04-01:1998-06-30">⚡ El Niño Canónico del Siglo (1997–1998)</option>
               <option value="1999-05-01:2000-12-31">❄️ La Niña Fuerte y Prolongada (1999–2000)</option>
@@ -263,7 +303,8 @@
               <input type="date" id="chartDateFrom" class="chart-date-input" title="Fecha inicio">
               <span class="range-sep">a</span>
               <input type="date" id="chartDateTo" class="chart-date-input" title="Fecha fin">
-              <button id="applyCustomDateRangeBtn" class="btn-chip btn-chip-apply" title="Aplicar rango de fechas">Filtrar</button>
+              <button id="applyCustomDateRangeBtn" class="btn-chip btn-chip-apply"
+                title="Aplicar rango de fechas">Filtrar</button>
             </div>
 
             <!-- Chips de Intervalo Rápido Sincronizados -->
@@ -307,7 +348,8 @@
 
       <div class="drawer-info-box">
         <h4>🔬 Comparación Científica</h4>
-        <p>Selecciona múltiples modelos para evaluar la concordancia sinóptica, la dispersión inter-modelo y los desfases latitudinales en el seguimiento del APS.</p>
+        <p>Selecciona múltiples modelos para evaluar la concordancia sinóptica, la dispersión inter-modelo y los
+          desfases latitudinales en el seguimiento del APS.</p>
       </div>
     </div>
 
@@ -328,21 +370,28 @@
         <button class="modal-close-btn" data-close="modalPressureOverlay" aria-label="Cerrar modal">✕</button>
       </div>
       <div class="science-modal-body">
-        <p>La <strong>Presión Superficial Atmosférica máxima (PSA)</strong> en hectopascales (hPa) es el índice de primer orden del vigor del Anticiclón del Pacífico Sur. El gradiente horizontal de presión entre el núcleo oceánico de alta presión y la costa sudamericana impulsa el viento geostrófico paralelo al borde costero:</p>
-        
+        <p>La <strong>Presión Superficial Atmosférica máxima (PSA)</strong> en hectopascales (hPa) es el índice de
+          primer orden del vigor del Anticiclón del Pacífico Sur. El gradiente horizontal de presión entre el núcleo
+          oceánico de alta presión y la costa sudamericana impulsa el viento geostrófico paralelo al borde costero:</p>
+
         <div class="formula-box">
           u_g = -(1 / (ρ_a · f)) · (∂P / ∂y)<br>
           v_g = +(1 / (ρ_a · f)) · (∂P / ∂x)
         </div>
 
-        <p>Donde <strong>ρ_a</strong> es la densidad atmosférica (~1.225 kg/m³) y <strong>f = 2Ω sin(φ)</strong> es el parámetro de Coriolis (negativo en el Hemisferio Sur).</p>
-        
+        <p>Donde <strong>ρ_a</strong> es la densidad atmosférica (~1.225 kg/m³) y <strong>f = 2Ω sin(φ)</strong> es el
+          parámetro de Coriolis (negativo en el Hemisferio Sur).</p>
+
         <div class="formula-box">
           Esfuerzo del Viento: τ = ρ_a · C_d · |u| · u<br>
           Transporte de Ekman mar adentro: M_Ex = τ_y / (ρ_w · f)
         </div>
 
-        <p>El esfuerzo cortante que ejerce este viento sobre la superficie del mar genera un transporte neto de agua hacia el oeste mar adentro (transporte de Ekman). Por conservación de masa, este flujo divergente en la costa chilena y peruana es compensado por el ascenso vertical forzado de aguas profundas frías y ricas en nutrientes (<strong>surgencia costera o upwelling de la Corriente de Humboldt</strong>), sustentando una de las mayores pesquerías y biomasas marinas del planeta.</p>
+        <p>El esfuerzo cortante que ejerce este viento sobre la superficie del mar genera un transporte neto de agua
+          hacia el oeste mar adentro (transporte de Ekman). Por conservación de masa, este flujo divergente en la costa
+          chilena y peruana es compensado por el ascenso vertical forzado de aguas profundas frías y ricas en nutrientes
+          (<strong>surgencia costera o upwelling de la Corriente de Humboldt</strong>), sustentando una de las mayores
+          pesquerías y biomasas marinas del planeta.</p>
       </div>
     </div>
   </div>
@@ -355,21 +404,30 @@
         <button class="modal-close-btn" data-close="modalPositionOverlay" aria-label="Cerrar modal">✕</button>
       </div>
       <div class="science-modal-body">
-        <p>El núcleo del APS representa la rama descendente de la <strong>Celda de Hadley</strong> sobre el Pacífico Suroriental. Su dinámica espacial está regida por dos ciclos temporales fundamentales:</p>
-        
+        <p>El núcleo del APS representa la rama descendente de la <strong>Celda de Hadley</strong> sobre el Pacífico
+          Suroriental. Su dinámica espacial está regida por dos ciclos temporales fundamentales:</p>
+
         <div class="skill-cards-grid" style="margin: 1rem 0;">
           <div class="skill-card">
             <h4>☀️ Verano Austral (DJF)</h4>
-            <p>El centro migra hacia el sur (<strong>35°S a 40°S</strong>) y se intensifica (> 1026 hPa). El gradiente costero se extiende hacia la Región de Los Ríos y Los Lagos, bloqueando los sistemas frontales fríos y manteniendo tiempo seco en Chile central.</p>
+            <p>El centro migra hacia el sur (<strong>35°S a 40°S</strong>) y se intensifica (> 1026 hPa). El gradiente
+              costero se extiende hacia la Región de Los Ríos y Los Lagos, bloqueando los sistemas frontales fríos y
+              manteniendo tiempo seco en Chile central.</p>
           </div>
           <div class="skill-card">
             <h4>❄️ Invierno Austral (JJA)</h4>
-            <p>El centro se relaja y retrocede hacia el norte (<strong>25°S a 30°S</strong>). Esto abre la ruta sinóptica de los vientos del oeste (westerlies), permitiendo el ingreso recurrente de sistemas frontales lluviosos a la zona centro-sur de Chile.</p>
+            <p>El centro se relaja y retrocede hacia el norte (<strong>25°S a 30°S</strong>). Esto abre la ruta
+              sinóptica de los vientos del oeste (westerlies), permitiendo el ingreso recurrente de sistemas frontales
+              lluviosos a la zona centro-sur de Chile.</p>
           </div>
         </div>
 
-        <h3 style="color: var(--color-accent); font-size: 1rem; margin-top: 1rem;">Ondas de Rossby y Bloqueos Patagónicos</h3>
-        <p>Durante fases extremas del Modo Anular del Sur (SAM) o eventos de bloqueo atmosférico, el núcleo del anticiclón puede migrar hacia <strong>Chiloé (42°S)</strong>, el <strong>Golfo de Penas (47°S)</strong> o desprender altas de bloqueo migratorias (<em>cut-off highs</em>) hacia el Pasaje de Drake (56°S), alterando drásticamente el régimen de corrientes y calor en los fiordos patagónicos.</p>
+        <h3 style="color: var(--color-accent); font-size: 1rem; margin-top: 1rem;">Ondas de Rossby y Bloqueos
+          Patagónicos</h3>
+        <p>Durante fases extremas del Modo Anular del Sur (SAM) o eventos de bloqueo atmosférico, el núcleo del
+          anticiclón puede migrar hacia <strong>Chiloé (42°S)</strong>, el <strong>Golfo de Penas (47°S)</strong> o
+          desprender altas de bloqueo migratorias (<em>cut-off highs</em>) hacia el Pasaje de Drake (56°S), alterando
+          drásticamente el régimen de corrientes y calor en los fiordos patagónicos.</p>
       </div>
     </div>
   </div>
@@ -382,16 +440,25 @@
         <button class="modal-close-btn" data-close="modalAnomalyOverlay" aria-label="Cerrar modal">✕</button>
       </div>
       <div class="science-modal-body">
-        <p>La <strong>anomalía barométrica</strong> cuantifica la desviación instantánea de la presión respecto al promedio climatológico multidecadal correspondiente con exactitud al mismo día del año (Day of Year - DOY):</p>
-        
+        <p>La <strong>anomalía barométrica</strong> cuantifica la desviación instantánea de la presión respecto al
+          promedio climatológico multidecadal correspondiente con exactitud al mismo día del año (Day of Year - DOY):
+        </p>
+
         <div class="formula-box">
           ΔP(t) = P_observada(t) − P_climatología(día_del_año)
         </div>
 
-        <h3 style="color: var(--color-accent); font-size: 1rem; margin: 1rem 0 0.5rem;">Interpretación Oceanográfica y Sinóptica:</h3>
+        <h3 style="color: var(--color-accent); font-size: 1rem; margin: 1rem 0 0.5rem;">Interpretación Oceanográfica y
+          Sinóptica:</h3>
         <ul>
-          <li><strong style="color: #f59e0b;">Anomalías Fuertemente Positivas (> +2.0 hPa):</strong> Indican anticiclones de bloqueo y dorsales cálidas persistentes. Se asocian a condiciones de megasequía en Chile central, reducción en la velocidad de la corriente de Humboldt y ocurrencia de <strong>Olas de Calor Marinas (Marine Heatwaves)</strong> en los mares interiores de Chiloé y Patagonia.</li>
-          <li><strong style="color: #00d2ff;">Anomalías Negativas (< -2.0 hPa):</strong> Reflejan un debilitamiento pronunciado de la subsidencia subtropical. Ocurren frecuentemente durante las fases cálidas de <strong>El Niño (ENOS)</strong> o durante el paso de trenes de bajas presiones subantárticas profundas.</li>
+          <li><strong style="color: #f59e0b;">Anomalías Fuertemente Positivas (> +2.0 hPa):</strong> Indican
+            anticiclones de bloqueo y dorsales cálidas persistentes. Se asocian a condiciones de megasequía en Chile
+            central, reducción en la velocidad de la corriente de Humboldt y ocurrencia de <strong>Olas de Calor Marinas
+              (Marine Heatwaves)</strong> en los mares interiores de Chiloé y Patagonia.</li>
+          <li><strong style="color: #00d2ff;">Anomalías Negativas (< -2.0 hPa):</strong> Reflejan un debilitamiento
+                pronunciado de la subsidencia subtropical. Ocurren frecuentemente durante las fases cálidas de
+                <strong>El Niño (ENOS)</strong> o durante el paso de trenes de bajas presiones subantárticas profundas.
+          </li>
         </ul>
       </div>
     </div>
@@ -405,12 +472,14 @@
         <button class="modal-close-btn" data-close="modalCoverageOverlay" aria-label="Cerrar modal">✕</button>
       </div>
       <div class="science-modal-body">
-        <p>El observatorio del APS funciona con un pipeline computacional automatizado desarrollado por el <strong>Laboratorio de Oceanografía Física (LOFA - UACh)</strong> con las siguientes especificaciones:</p>
-        
+        <p>El observatorio del APS funciona con un pipeline computacional automatizado desarrollado por el
+          <strong>Laboratorio de Oceanografía Física (LOFA - UACh)</strong> con las siguientes especificaciones:</p>
+
         <div class="skill-cards-grid" style="margin: 1rem 0;">
           <div class="skill-card">
             <h4>📡 Reanálisis ERA5 (Copernicus ECMWF)</h4>
-            <p>Resolución espacial: 0.25° × 0.25° (~31 km). Serie horaria promediada diariamente a nivel del mar (MSLP).</p>
+            <p>Resolución espacial: 0.25° × 0.25° (~31 km). Serie horaria promediada diariamente a nivel del mar (MSLP).
+            </p>
           </div>
           <div class="skill-card">
             <h4>🛰️ Pronóstico Operativo GFS (NOAA NOMADS)</h4>
@@ -418,7 +487,8 @@
           </div>
           <div class="skill-card">
             <h4>🗺️ Dominio Oceánico Extendido</h4>
-            <p>Ventana geográfica: 10°S a 56°S y 130°W a 65°W. Búsqueda del núcleo oceánico marino con exclusión estricta de la Cordillera de los Andes.</p>
+            <p>Ventana geográfica: 10°S a 56°S y 130°W a 65°W. Búsqueda del núcleo oceánico marino con exclusión
+              estricta de la Cordillera de los Andes.</p>
           </div>
           <div class="skill-card">
             <h4>🔄 Control de Calidad y Caché</h4>
@@ -438,24 +508,33 @@
       </div>
       <div class="science-modal-body">
         <h3>1. Marco Físico-Oceanográfico</h3>
-        <p>El Anticiclón del Pacífico Sur (APS) es el elemento rector del clima y la dinámica del océano en el Pacífico Suroriental y la costa chilena. Su circulación anticiclónica (en sentido antihorario en el hemisferio sur) genera vientos persistentes del sur y suroeste paralelos a la costa de Chile y Perú, impulsando el <strong>Sistema de la Corriente de Humboldt</strong>.</p>
-        
+        <p>El Anticiclón del Pacífico Sur (APS) es el elemento rector del clima y la dinámica del océano en el Pacífico
+          Suroriental y la costa chilena. Su circulación anticiclónica (en sentido antihorario en el hemisferio sur)
+          genera vientos persistentes del sur y suroeste paralelos a la costa de Chile y Perú, impulsando el
+          <strong>Sistema de la Corriente de Humboldt</strong>.</p>
+
         <h3>2. Balance Dinámico y Transporte de Ekman</h3>
-        <p>El esfuerzo tangencial que ejerce el viento sobre la superficie marina produce una desviación neta del transporte de agua a 90° hacia la izquierda del viento debido a la aceleración de Coriolis:</p>
+        <p>El esfuerzo tangencial que ejerce el viento sobre la superficie marina produce una desviación neta del
+          transporte de agua a 90° hacia la izquierda del viento debido a la aceleración de Coriolis:</p>
         <div class="formula-box">
           M_Ek = τ / (ρ_w · |f|) &emsp; [kg / (m · s)]
         </div>
-        <p>La divergencia superficial de Ekman genera una tasa de bombeo vertical (<em>upwelling</em>) dada por la vorticidad del viento: <strong>w_E = (1 / (ρ_w · f)) · rot(τ)</strong>.</p>
+        <p>La divergencia superficial de Ekman genera una tasa de bombeo vertical (<em>upwelling</em>) dada por la
+          vorticidad del viento: <strong>w_E = (1 / (ρ_w · f)) · rot(τ)</strong>.</p>
 
         <h3>3. Algoritmo de Detección del Centro Bárico Marino</h3>
-        <p>A partir de la matriz diaria de presión a nivel del mar (MSLP) en hPa, el algoritmo busca el punto de máxima presión dentro del polígono oceánico:</p>
+        <p>A partir de la matriz diaria de presión a nivel del mar (MSLP) en hPa, el algoritmo busca el punto de máxima
+          presión dentro del polígono oceánico:</p>
         <div class="formula-box">
           P_max(t) = max { P(lat, lon, t) | lat ∈ [-54°, -18°], lon ∈ [-125°, -73°], andes_mask = False }
         </div>
-        <p>Se aplica una máscara topográfica que excluye la Cordillera de los Andes y el Altiplano para evitar reducciones barométricas erróneas sobre el relieve continental.</p>
+        <p>Se aplica una máscara topográfica que excluye la Cordillera de los Andes y el Altiplano para evitar
+          reducciones barométricas erróneas sobre el relieve continental.</p>
 
         <h3>4. Intercomparación Multimodelo y Métricas Estadísticas</h3>
-        <p>Siguiendo las directrices internacionales del SPARC Reanalysis Intercomparison Project (S-RIP), se calculan métricas rigurosas: Error Cuadrático Medio (RMSE), Sesgo Medio (BIAS), Correlación de Pearson (r), Distancia Geodésica Ortodrómica y el Índice de Habilidad de Willmott (d).</p>
+        <p>Siguiendo las directrices internacionales del SPARC Reanalysis Intercomparison Project (S-RIP), se calculan
+          métricas rigurosas: Error Cuadrático Medio (RMSE), Sesgo Medio (BIAS), Correlación de Pearson (r), Distancia
+          Geodésica Ortodrómica y el Índice de Habilidad de Willmott (d).</p>
       </div>
     </div>
   </div>
@@ -468,14 +547,19 @@
         <button class="modal-close-btn" data-close="citationModalOverlay" aria-label="Cerrar modal">✕</button>
       </div>
       <div class="science-modal-body">
-        <p>Si utilizas este software, sus visualizaciones interactivas o sus series temporales procesadas en investigaciones académicas, informes técnicos o publicaciones científicas, por favor cítalo como se indica a continuación:</p>
+        <p>Si utilizas este software, sus visualizaciones interactivas o sus series temporales procesadas en
+          investigaciones académicas, informes técnicos o publicaciones científicas, por favor cítalo como se indica a
+          continuación:</p>
 
         <h4 style="color: var(--color-accent); margin-top: 1rem;">1. Cita en texto (Estilo APA 7ª edición)</h4>
         <div class="citation-copy-box">
           <p id="apaCitationText" class="citation-text">
-            Laboratorio de Oceanografía Física (LOFA). (2026). <em>Dashboard Científico del Anticiclón del Pacífico Sur (Versión 2.0)</em> [Software y datos en acceso abierto]. Universidad Austral de Chile. https://laboratorio-oceanografia-fisica-uach.github.io/dashboard-anticiclon-pacifico/
+            Laboratorio de Oceanografía Física (LOFA). (2026). <em>Dashboard Científico del Anticiclón del Pacífico Sur
+              (Versión 3.0)</em> [Software y datos en acceso abierto]. Universidad Austral de Chile.
+            https://laboratorio-oceanografia-fisica-uach.github.io/dashboard-APS/
           </p>
-          <button id="copyApaBtn" class="btn btn-secondary btn-copy" title="Copiar cita APA al portapapeles">📋 Copiar APA</button>
+          <button id="copyApaBtn" class="btn btn-secondary btn-copy" title="Copiar cita APA al portapapeles">📋 Copiar
+            APA</button>
         </div>
 
         <h4 style="color: var(--color-accent); margin-top: 1.25rem;">2. Entrada BibTeX (para LaTeX / Overleaf)</h4>
@@ -485,15 +569,17 @@
   title     = {{Dashboard Cient{\'i}fico del Anticicl{\'o}n del Pac{\'i}fico Sur (APS)}},
   year      = {2026},
   publisher = {Universidad Austral de Chile},
-  url       = {https://laboratorio-oceanografia-fisica-uach.github.io/dashboard-anticiclon-pacifico/},
-  version   = {2.0},
+  url       = {https://laboratorio-oceanografia-fisica-uach.github.io/dashboard-APS/},
+  version   = {3.0},
   note      = {Acceso abierto, software libre GNU AGPLv3}
 }</code></pre>
-          <button id="copyBibtexBtn" class="btn btn-secondary btn-copy" title="Copiar BibTeX al portapapeles">📋 Copiar BibTeX</button>
+          <button id="copyBibtexBtn" class="btn btn-secondary btn-copy" title="Copiar BibTeX al portapapeles">📋 Copiar
+            BibTeX</button>
         </div>
 
         <div style="margin-top: 1.5rem; text-align: center;">
-          <a href="CITATION.cff" download="CITATION.cff" class="btn btn-primary" title="Descargar archivo CITATION.cff oficial">
+          <a href="CITATION.cff" download="CITATION.cff" class="btn btn-primary"
+            title="Descargar archivo CITATION.cff oficial">
             📥 Descargar archivo CITATION.cff
           </a>
         </div>
@@ -510,8 +596,10 @@
       </div>
 
       <div class="science-modal-body">
-        <p style="margin-bottom: 1rem; color: #cbd5e1;">Evaluación cuantitativa rigurosa contra las observaciones de reanálisis de referencia (<strong>ERA5 de Copernicus ECMWF, Resolución 0.25°</strong>). Permite evaluar el error sistemático, la correlación temporal y el desplazamiento espacial de cada modelo:</p>
-        
+        <p style="margin-bottom: 1rem; color: #cbd5e1;">Evaluación cuantitativa rigurosa contra las observaciones de
+          reanálisis de referencia (<strong>ERA5 de Copernicus ECMWF, Resolución 0.25°</strong>). Permite evaluar el
+          error sistemático, la correlación temporal y el desplazamiento espacial de cada modelo:</p>
+
         <div style="overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
           <table class="validation-table" id="validationMetricsTable">
             <thead>
@@ -548,7 +636,88 @@
           </div>
           <div class="skill-card">
             <h4>🧭 Error Espacial y Willmott (d)</h4>
-            <p>Distancia ortodrómica media en km entre centros predicho y real. El índice <em>d</em> (0 a 1) resume la habilidad global.</p>
+            <p>Distancia ortodrómica media en km entre centros predicho y real. El índice <em>d</em> (0 a 1) resume la
+              habilidad global.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 8: Dinámica Oceanográfica de Surgencia Costera (Índice de Bakun UI) -->
+  <div id="upwellingModalOverlay" class="science-modal-overlay">
+    <div class="science-modal-container" style="max-width: 900px;">
+      <div class="science-modal-header">
+        <h2 class="science-modal-title"><span>🌊</span> Dinámica de Surgencia Costera (Índice de Bakun UI) y Transporte
+          de Ekman</h2>
+        <button class="modal-close-btn" data-close="upwellingModalOverlay" aria-label="Cerrar modal">✕</button>
+      </div>
+
+      <div class="science-modal-body">
+        <p style="margin-bottom: 1rem; color: #cbd5e1;">
+          El <strong>Anticiclón del Pacífico Sur (APS)</strong> comanda el gradiente barométrico entre el Pacífico
+          Suroriental y las bajas térmicas sobre el cono sudamericano. Debido a la aceleración de Coriolis en el
+          Hemisferio Sur (\(f &lt; 0\)), este gradiente genera vientos paralelos a la costa de Chile con componente
+          hacia el norte (\(v &gt; 0\)), los cuales impulsan el <strong>transporte mar afuera de la capa superficial de
+            Ekman</strong> (\(M_{Ex}\)) provocando la surgencia (<em>upwelling</em>) de aguas subsuperficiales frías,
+          salinas y ricas en nutrientes (Aguas Ecuatoriales Subsuperficiales - AESS).
+        </p>
+
+        <div class="math-box">
+          <div class="math-formula">
+            $$v_g = \frac{1}{\rho_a f} \frac{\partial P}{\partial x}, \quad \tau_y = \rho_a C_d |\vec{V}_{10}| v_{10}$$
+          </div>
+          <div class="math-formula" style="margin-top: 0.5rem; color: var(--color-gold);">
+            $$UI = \frac{\tau_y}{\rho_w |f|} \times 1000 \quad \left[\frac{\text{m}^3}{\text{s} \cdot \text{km de
+            costa}}\right], \quad M_{Ex} = \frac{\tau_y}{\rho_w |f|}$$
+          </div>
+          <p class="math-explanation">
+            Donde \(\rho_a \approx 1.225\text{ kg/m}^3\), \(\rho_w \approx 1025\text{ kg/m}^3\), \(C_d \approx 1.3
+            \times 10^{-3}\) (coeficiente de arrastre aerodinámico) y \(f = 2\Omega\sin\phi &lt; 0\) es el parámetro de
+            Coriolis (\(\Omega = 7.2921 \times 10^{-5}\text{ rad/s}\)). Un índice \(UI &gt; 0\) indica surgencia neta
+            favorable; \(UI &gt; 500\) representa eventos intensos comandados por el Chorro Costero de Bajo Nivel
+            (CLLJ); valores negativos (\(UI &lt; 0\)) corresponden a hundimiento o relajación costera
+            (<em>downwelling</em>).
+          </p>
+        </div>
+
+        <h3 style="color: #f1f5f9; font-size: 1.05rem; margin: 1.25rem 0 0.5rem;">📍 Monitoreo Operativo en 5 Puntos
+          Estratégicos de Chile</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          Valores calculados dinámicamente a partir del gradiente barométrico zonal en la fecha activa del observatorio:
+        </p>
+
+        <div
+          style="overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 0.5rem;">
+          <table class="upwelling-modal-table" id="upwellingModalStationsTable">
+            <thead>
+              <tr>
+                <th>Estación / Puerto</th>
+                <th>Región</th>
+                <th>Latitud</th>
+                <th>Gradiente \(\partial P/\partial x\)</th>
+                <th>Viento \(V_{10}\)</th>
+                <th>Esfuerzo \(\tau_y\)</th>
+                <th>Índice Bakun (UI)</th>
+                <th>Estado Oceanográfico</th>
+              </tr>
+            </thead>
+            <tbody id="upwellingModalTableBody">
+              <!-- Renderizado dinámicamente con JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="skill-cards-grid" style="margin-top: 1.25rem;">
+          <div class="skill-card">
+            <h4>🐟 Productividad Primaria y AESS</h4>
+            <p>La surgencia transporta aguas de 10° a 13°C con alto contenido de nitrato (&gt;25 µM) y fosfato a la zona
+              fótica, sustentando la mayor pesquería pelágica del planeta (anchoveta y sardina).</p>
+          </div>
+          <div class="skill-card">
+            <h4>🧭 Migración Estacional del Chorro</h4>
+            <p>En invierno el APS migra al norte (~27°S), confinando la surgencia a Arica y Mejillones. En
+              primavera-verano desciende a 35°-38°S, intensificando los vientos favorables en Valparaíso y Arauco.</p>
           </div>
         </div>
       </div>
@@ -561,7 +730,8 @@
       <div class="footer-left">
         <p><strong>Laboratorio de Oceanografía Física (LOFA)</strong></p>
         <p>Instituto de Ciencias Marinas y Limnológicas — Universidad Austral de Chile (UACh)</p>
-        <p class="footer-copy">Distribuido bajo licencia de software libre <strong>GNU AGPLv3</strong>. Código auditable y reproducible.</p>
+        <p class="footer-copy">Distribuido bajo licencia de software libre <strong>GNU AGPLv3</strong>. Código auditable
+          y reproducible.</p>
       </div>
       <div class="footer-links">
         <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh" target="_blank" rel="noopener">GitHub LOFA</a>
@@ -577,4 +747,5 @@
   <script src="js/charts.js?v=2.1"></script>
   <script src="js/main.js?v=2.1"></script>
 </body>
+
 </html>

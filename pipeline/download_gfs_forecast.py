@@ -27,7 +27,30 @@ LON_EAST = -65
 TRACK_LAT_NORTH = -18.0
 TRACK_LAT_SOUTH = -54.0
 TRACK_LON_WEST = -125.0
-TRACK_LON_EAST = -75.0
+TRACK_LON_EAST = -68.0
+
+
+def get_pacific_coastline_lon(lat):
+    """
+    Retorna la longitud del límite costero oriental del Océano Pacífico para una latitud dada.
+    Puntos al este corresponden a tierra continental y se enmascaran.
+    """
+    ref_lats = np.array([
+        -10.0, -12.0, -14.0, -16.0, -18.0,
+        -20.0, -24.0, -28.0, -30.0, -33.0,
+        -35.0, -37.0, -39.0, -41.0, -43.0,
+        -45.0, -46.5, -48.0, -50.0, -52.0,
+        -54.0, -56.0
+    ])
+    ref_lons = np.array([
+        -78.2, -77.2, -76.2, -74.0, -71.2,
+        -70.15, -70.4, -71.0, -71.35, -71.65,
+        -72.3, -73.5, -73.4, -73.8, -74.2,
+        -74.8, -75.7, -75.3, -75.4, -75.3,
+        -73.5, -68.5
+    ])
+    return np.interp(lat, ref_lats[::-1], ref_lons[::-1])
+
 
 NOMADS_BASE = "https://nomads.ncep.noaa.gov"
 
@@ -126,12 +149,11 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
 
                 grid = p_var.values
 
-                # Máscara booleana para la ventana oceánica de seguimiento (evita Los Andes/continente)
+                # Máscara oceánica estricta (evita Los Andes/continente sudamericano)
                 lat_mask = (lats <= TRACK_LAT_NORTH) & (lats >= TRACK_LAT_SOUTH)
-                lon_mask = (lons >= TRACK_LON_WEST) & (lons <= TRACK_LON_EAST)
-
-                # Aplicar máscara en 2D
-                ocean_mask = np.outer(lat_mask, lon_mask)
+                lon_grid, _ = np.meshgrid(lons, lats)
+                coast_limits = get_pacific_coastline_lon(lats)[:, None]
+                ocean_mask = (lon_grid >= TRACK_LON_WEST) & (lon_grid < coast_limits) & lat_mask[:, None]
                 masked_grid = np.where(ocean_mask, grid, np.nan)
 
                 max_idx = np.unravel_index(np.nanargmax(masked_grid), masked_grid.shape)
