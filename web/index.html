@@ -514,35 +514,79 @@
         <h2 class="science-modal-title"><span>🔬</span> Metodología Científica del Observatorio del APS</h2>
         <button class="modal-close-btn" data-close="methodologyModalOverlay" aria-label="Cerrar modal">✕</button>
       </div>
-      <div class="science-modal-body">
-        <h3>1. Marco Físico-Oceanográfico</h3>
-        <p>El Anticiclón del Pacífico Sur (APS) es el elemento rector del clima y la dinámica del océano en el Pacífico
-          Suroriental y la costa chilena. Su circulación anticiclónica (en sentido antihorario en el hemisferio sur)
-          genera vientos persistentes del sur y suroeste paralelos a la costa de Chile y Perú, impulsando el
-          <strong>Sistema de la Corriente de Humboldt</strong>.</p>
-
-        <h3>2. Balance Dinámico y Transporte de Ekman</h3>
-        <p>El esfuerzo tangencial que ejerce el viento sobre la superficie marina produce una desviación neta del
-          transporte de agua a 90° hacia la izquierda del viento debido a la aceleración de Coriolis:</p>
-        <div class="formula-box">
-          M_Ek = τ / (ρ_w · |f|) &emsp; [kg / (m · s)]
+      <div class="science-modal-body" style="font-size: 0.92rem; line-height: 1.6;">
+        <div style="background: rgba(0, 210, 255, 0.08); border-left: 4px solid var(--color-accent); padding: 0.75rem 1rem; border-radius: 4px; margin-bottom: 1.25rem;">
+          <p style="margin: 0; color: #e2e8f0; font-size: 0.88rem;">
+            <strong>Documento Oficial LOFA:</strong> Esta metodología resume el marco físico, dinámico y numérico formal establecido en <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-APS/blob/main/docs/METODOLOGIA.md" target="_blank" rel="noopener" style="color: var(--color-accent); font-weight: 600; text-decoration: underline;">docs/METODOLOGIA.md</a> para el Observatorio del Anticiclón del Pacífico Sur.
+          </p>
         </div>
-        <p>La divergencia superficial de Ekman genera una tasa de bombeo vertical (<em>upwelling</em>) dada por la
-          vorticidad del viento: <strong>w_E = (1 / (ρ_w · f)) · rot(τ)</strong>.</p>
 
-        <h3>3. Algoritmo de Detección del Centro Bárico Marino</h3>
-        <p>A partir de la matriz diaria de presión a nivel del mar (MSLP) en hPa, el algoritmo busca el punto de máxima
-          presión dentro del polígono oceánico:</p>
-        <div class="formula-box">
-          P_max(t) = max { P(lat, lon, t) | lat ∈ [-54°, -18°], lon ∈ [-125°, -73°], andes_mask = False }
+        <h3>1. Fundamentos Geofísicos y Dinámica del APS</h3>
+        <p>El <strong>Anticiclón del Pacífico Sur (APS)</strong> (<em>South Pacific Subtropical High, SPH</em>) es la entidad motora fundamental de la circulación atmósfera-océano en el Pacífico Suroriental y el margen chileno-peruano. Representa la rama descendente de la <strong>Celda de Hadley</strong> (~25°S–35°S), donde masas de aire subsidentes generan una persistente inversión térmica que modula el manto de estratocúmulos marinos y los vientos alisios del sur/suroeste.</p>
+
+        <h3>2. Balance Geostrófico en el Hemisferio Sur</h3>
+        <p>A escala sinóptica sobre el océano libre, la aceleración horizontal de Coriolis equilibra el gradiente bárico:</p>
+        <div class="math-box">
+          <div class="math-formula">
+            $$u_g = -\frac{1}{\rho_a f} \frac{\partial P}{\partial y}, \qquad v_g = \frac{1}{\rho_a f} \frac{\partial P}{\partial x}$$
+          </div>
+          <p class="math-explanation">
+            Donde \(\rho_a \approx 1.225\text{ kg/m}^3\) y \(f = 2\Omega\sin\phi &lt; 0\) es el parámetro de Coriolis (\(\Omega = 7.2921 \times 10^{-5}\text{ rad/s}\)). Al ser \(f &lt; 0\), la circulación alrededor del núcleo central anticiclónico (\(\nabla P &lt; 0\)) es estrictamente <strong>levógira (en sentido antihorario)</strong>.
+          </p>
         </div>
-        <p>Se aplica una máscara topográfica que excluye la Cordillera de los Andes y el Altiplano para evitar
-          reducciones barométricas erróneas sobre el relieve continental.</p>
 
-        <h3>4. Intercomparación Multimodelo y Métricas Estadísticas</h3>
-        <p>Siguiendo las directrices internacionales del SPARC Reanalysis Intercomparison Project (S-RIP), se calculan
-          métricas rigurosas: Error Cuadrático Medio (RMSE), Sesgo Medio (BIAS), Correlación de Pearson (r), Distancia
-          Geodésica Ortodrómica y el Índice de Habilidad de Willmott (d).</p>
+        <h3>3. Dominio Espacial y Máscara Oceánica Continua</h3>
+        <p>Para evitar que altas térmicas continentales patagónicas o la Cordillera de los Andes contaminen la detección del centro, el rastreo se restringe al dominio oceánico:</p>
+        <div class="math-box">
+          <div class="math-formula">
+            $$\Omega_{\text{track}} = \{ (\phi, \lambda) \mid -42.0^\circ \le \phi \le -20.0^\circ, \ -115.0^\circ \le \lambda \le -70.0^\circ \}$$
+          </div>
+          <div class="math-formula" style="margin-top: 0.4rem;">
+            $$\lambda < \lambda_{\text{costa}}(\phi) = \text{Interp}\left(\phi, \vec{\phi}_{\text{ref}}, \vec{\lambda}_{\text{ref}}\right)$$
+          </div>
+          <p class="math-explanation">
+            Se excluye todo punto continental mediante una frontera costera vectorial interpolada, garantizando <strong>100.00% de centros estrictamente oceánicos</strong>.
+          </p>
+        </div>
+
+        <h3>4. Algoritmo de Detección del Centro y Climatología Diaria (DOY)</h3>
+        <p>A partir del promedio temporal diario de MSLP de ERA5 filtrado con suavizado espacial gaussiano (\(\sigma = 1.0\)):</p>
+        <div class="math-box">
+          <div class="math-formula">
+            $$\text{PSA}(t) = \max_{(\phi, \lambda) \in \Omega_{\text{mar}}} \left\{ \text{MSLP}(\phi, \lambda, t) \right\}, \quad (\phi_{\text{APS}}, \lambda_{\text{APS}})(t) = \arg\max_{(\phi, \lambda) \in \Omega_{\text{mar}}} \left\{ \text{MSLP}(\phi, \lambda, t) \right\}$$
+          </div>
+          <p class="math-explanation">
+            La anomalía \(\Delta P(t) = \text{PSA}(t) - \overline{\text{PSA}}_{\text{clim}}(\text{DOY}(t))\) se calcula día a día respecto a la media climatológica multidecadal del Día del Año (\(\text{DOY} \in [1, 366]\)), capturando fielmente eventos de bloqueo (\(\Delta P &gt; +3\text{ hPa}\)) o relajación barométrica.
+          </p>
+        </div>
+
+        <h3>5. Surgencia Costera y Formulación de Bakun (1973)</h3>
+        <p>El gradiente zonal de presión perpendicular a la costa genera viento geostrófico superficial y transporte mar afuera de la capa de Ekman (\(M_{Ex}\)):</p>
+        <div class="math-box">
+          <div class="math-formula">
+            $$\tau_y = \rho_a C_d |\vec{V}_{10}| v_{10}, \qquad UI = \frac{\tau_y}{\rho_w |f|} \times 1000 \quad \left[\frac{\text{m}^3}{\text{s} \cdot \text{km de costa}}\right]$$
+          </div>
+          <p class="math-explanation">
+            Un índice \(UI &gt; 300\text{ m}^3/(\text{s}\cdot\text{km})\) indica surgencia activa y ascenso de Aguas Ecuatoriales Subsuperficiales (AESS) ricas en nutrientes hacia la zona fótica.
+          </p>
+        </div>
+
+        <h3>6. Métricas de Validación Estadística (Normas OMM / S-RIP)</h3>
+        <p>Siguiendo las directrices del <em>SPARC Reanalysis Intercomparison Project (S-RIP)</em>, cada modelo \(M\) se evalúa frente al reanálisis de referencia \(O\) (ERA5):</p>
+        <div class="math-box">
+          <div class="math-formula">
+            $$\text{RMSE} = \sqrt{\frac{1}{N}\sum_{i=1}^N (M_i - O_i)^2}, \quad \text{BIAS} = \overline{M} - \overline{O}, \quad d = 1 - \frac{\sum (M_i - O_i)^2}{\sum (|M_i - \overline{O}| + |O_i - \overline{O}|)^2}$$
+          </div>
+          <p class="math-explanation">
+            La distancia ortodrómica media entre centros se computa mediante el Gran Círculo esférico de Haversine (\(R = 6371.0\text{ km}\)).
+          </p>
+        </div>
+
+        <div style="margin-top: 1.5rem; text-align: center;">
+          <a href="https://github.com/Laboratorio-Oceanografia-Fisica-UACh/dashboard-APS/blob/main/docs/METODOLOGIA.md" target="_blank" rel="noopener" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+            📄 Ver Documento Técnico Completo (docs/METODOLOGIA.md)
+          </a>
+        </div>
       </div>
     </div>
   </div>
