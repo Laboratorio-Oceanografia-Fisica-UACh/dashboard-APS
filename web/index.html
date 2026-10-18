@@ -31,6 +31,11 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- KaTeX (Renderizado de fórmulas matemáticas científicas OMM/LOFA) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
 </head>
 
 <body>
@@ -266,13 +271,16 @@
             <!-- Selector de Presets Climáticos Científicos -->
             <select id="climatePresetsSelect" class="preset-select"
               title="Cargar eventos climáticos históricos documentados">
-              <option value="">⚡ Presets Climáticos...</option>
-              <option value="1997-04-01:1998-06-30">⚡ El Niño Canónico del Siglo (1997–1998)</option>
-              <option value="1999-05-01:2000-12-31">❄️ La Niña Fuerte y Prolongada (1999–2000)</option>
-              <option value="2016-01-01:2016-04-30">🔥 Olas de Calor y Bloqueo Patagónico (2016)</option>
-              <option value="2017-01-01:2017-04-30">🌊 El Niño Costero (2017)</option>
-              <option value="2024-01-01:2024-03-31">🌡️ Verano Récord 2024</option>
+              <option value="">⚡ Presets Climáticos Documentados...</option>
+              <option value="1940-01-01:1941-12-31">🏜️ Gran Sequía de la Zona Central (1940–1941)</option>
+              <option value="1950-01-01:1951-12-31">❄️ La Niña Fuerte Multianual (1950–1951)</option>
+              <option value="1957-01-01:1958-12-31">⚡ El Niño Clásico / Año Geofísico (1957–1958)</option>
+              <option value="1965-01-01:1966-12-31">🌊 El Niño Intenso de Valparaíso (1965–1966)</option>
+              <option value="1972-01-01:1972-12-31">⚡ El Niño Histórico del Siglo XX (1972)</option>
               <option value="forecast">📡 Pronóstico Operativo NOAA GFS (+7 días)</option>
+              <option value="1997-04-01:1998-06-30" data-status="pending">⏳ El Niño Canónico (1997–1998) [En descarga]</option>
+              <option value="2015-05-01:2016-06-30" data-status="pending">⏳ El Niño Godzilla (2015–2016) [En descarga]</option>
+              <option value="2024-01-01:2024-03-31" data-status="pending">⏳ Verano Récord 2024 [En descarga]</option>
             </select>
 
             <!-- Chips de Intervalo Rápido -->
@@ -742,10 +750,10 @@
   </footer>
 
   <!-- Scripts del Dashboard con versión para evitar caché local -->
-  <script src="js/model_selector.js?v=2.1"></script>
-  <script src="js/maps.js?v=2.1"></script>
-  <script src="js/charts.js?v=2.1"></script>
-  <script src="js/main.js?v=2.1"></script>
+  <script src="js/model_selector.js?v=4.0"></script>
+  <script src="js/maps.js?v=4.0"></script>
+  <script src="js/charts.js?v=4.0"></script>
+  <script src="js/main.js?v=4.0"></script>
 </body>
 
 </html>

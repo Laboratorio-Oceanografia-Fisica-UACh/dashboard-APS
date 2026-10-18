@@ -5,10 +5,16 @@
 [![GitHub Pages](https://img.shields.io/badge/Deploy-GitHub%20Pages-brightgreen.svg)](https://laboratorio-oceanografia-fisica-uach.github.io/dashboard-anticiclon-pacifico/)
 [![Data Pipeline](https://img.shields.io/badge/Pipeline-Python%20%7C%20xarray-orange.svg)](pipeline/)
 [![Open Science](https://img.shields.io/badge/Open%20Science-Reproducible-informational.svg)](#ciencia-abierta-y-reproducibilidad)
+[![Status: En Desarrollo](https://img.shields.io/badge/Estado-Fase%20de%20Pruebas%20%2F%20Experimental-yellow.svg)](#-estado-del-proyecto-y-descargo-de-responsabilidad)
 
 <p align="center">
   <img src="web/assets/img/logo_lofa.png" alt="Logo LOFA UACh" width="220"/>
 </p>
+
+> [!WARNING]
+> ### ⚠️ Estado del Proyecto: Fase Experimental y en Desarrollo Activo
+> **Este observatorio y su plataforma web se encuentran actualmente en fase de pruebas, calibración y desarrollo técnico.**  
+> Los datos, algoritmos de seguimiento, mapas e indicadores aquí presentados **NO están calificados como referencia definitiva ni 100% fidedigna para la navegación, operaciones marítimas, peritajes, faenas pesqueras ni toma de decisiones críticas o institucionales**. Su propósito en esta etapa es estrictamente experimental, académico y de investigación metodológica interna.
 
 ---
 
@@ -154,3 +160,11 @@ Laboratorio de Oceanografía Física (LOFA)
 Instituto de Ciencias Marinas y Limnológicas (ICML)  
 Facultad de Ciencias — Universidad Austral de Chile  
 Valdivia, Chile.
+
+---
+
+## 🤖 Declaración de Transparencia: Uso de Asistencia por Inteligencia Artificial y Control Humano
+
+En consonancia con las políticas internacionales de integridad académica, ética científica y reproducibilidad de datos, se declara que el desarrollo, refactorización y documentación de este repositorio ha contado con la colaboración de **agentes de Inteligencia Artificial (IA)** como herramientas de asistencia técnica avanzada en programación.
+
+No obstante, se establece como principio irrenunciable que **la totalidad del código, los modelos físicos, las formulaciones matemáticas y las salidas de datos son estrictamente auditados, validados y supervisados por un miembro del equipo científico antes de la aprobación y ejecución de cada *commit***. La responsabilidad final sobre la precisión oceanográfica, la consistencia de las métricas y la veracidad de los resultados recae de manera exclusiva en los investigadores humanos del proyecto.

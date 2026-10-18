@@ -51,6 +51,15 @@ class DashboardCharts {
         const val = e.target.value;
         if (!val) return;
 
+        const selectedOpt = presetSelect.options[presetSelect.selectedIndex];
+        const isPending = selectedOpt && selectedOpt.dataset && selectedOpt.dataset.status === 'pending';
+
+        if (isPending) {
+          this.showScientificToast(
+            `El evento <strong>${selectedOpt.textContent.trim()}</strong> está en proceso de ingesta histórica en segundo plano.<br><small style="color:#94a3b8;">La base activa actual cubre desde 1940 en adelante.</small>`
+          );
+        }
+
         // Desactivar chips rápidos
         document.querySelectorAll('.chart-controls .btn-chip').forEach((b) => b.classList.remove('active'));
 
@@ -311,5 +320,22 @@ class DashboardCharts {
 
     bindPlotClick('positionChart');
     bindPlotClick('pressureChart');
+  }
+
+  showScientificToast(message) {
+    let toast = document.getElementById('scientificToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'scientificToast';
+      toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0b1329;border:1px solid #00d2ff;color:#f8fafc;padding:12px 20px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.85);z-index:9999;font-size:0.875rem;max-width:380px;line-height:1.45;transition:all 0.3s ease;pointer-events:none;opacity:0;transform:translateY(12px);';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `📡 <strong>Aviso del Observatorio:</strong><br>${message}`;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(12px)';
+    }, 4500);
   }
 }

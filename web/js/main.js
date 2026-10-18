@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (isForecast) {
         const fcIdx = gfsModel.dates.indexOf(activeDate);
         const hours = fcIdx * 24;
-        activeDateLabel.innerHTML = `${activeDate} <span class="timeline-forecast-badge">📡 GFS +${hours}h</span>`;
+        activeDateLabel.innerHTML = `${activeDate} <span class="timeline-forecast-badge">🛰️ GFS +${hours}h</span>`;
       } else {
         activeDateLabel.textContent = activeDate;
       }
@@ -283,12 +283,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // Modelo estacional físico de respaldo (DOY):
-    const dt = new Date(dateStr);
-    const startYear = new Date(dt.getFullYear(), 0, 1);
-    const doy = Math.floor((dt - startYear) / (24 * 3600 * 1000)) + 1;
-    // Ciclo anual del APS en el Pacífico Suroriental: media 1023.2 hPa, pico estival en febrero
-    return 1023.2 + 2.8 * Math.cos(2 * Math.PI * (doy - 45) / 365.25);
+    // Respaldo climatológico empírico directo
+    if (climModel && climModel.pressure_psa && climModel.pressure_psa.length > 0) {
+      const sum = climModel.pressure_psa.reduce((a, b) => a + b, 0);
+      return sum / climModel.pressure_psa.length;
+    }
+    return 1024.0;
   }
 
   function updateKpis() {
@@ -374,14 +374,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (kpiDate) kpiDate.textContent = activeDate;
     if (kpiAnomalySub) kpiAnomalySub.textContent = `Respecto a normal climática (${climBaseline.toFixed(1)} hPa)`;
-    
+
     // Si estamos en fecha de pronóstico GFS, actualizar detalles informativos
     const gfsModel = rawData.models['NOAA GFS Pronóstico'] || Object.values(rawData.models).find(m => m.id === 'noaa_gfs_forecast');
     const isForecast = !!(gfsModel && gfsModel.dates && gfsModel.dates.includes(activeDate));
     if (isForecast && gfsModel) {
       const dIdx = gfsModel.dates.indexOf(activeDate);
       const hours = dIdx * 24;
-      if (kpiModelFocus) kpiModelFocus.innerHTML = `📡 Pronóstico NOAA GFS (+${hours}h)`;
+      if (kpiModelFocus) kpiModelFocus.innerHTML = `🛰️ Pronóstico NOAA GFS (+${hours}h)`;
       if (kpiDateSub) kpiDateSub.textContent = `Paso de Pronóstico Numérico GFS (+${hours} horas)`;
     } else if (kpiDateSub && rawData.metadata && rawData.metadata.time_coverage) {
       kpiDateSub.textContent = `Registro: ${rawData.metadata.time_coverage.start} a ${rawData.metadata.time_coverage.end}`;
@@ -482,7 +482,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function openModal(modalId) {
       const modal = document.getElementById(modalId);
-      if (modal) modal.classList.add('open');
+      if (modal) {
+        modal.classList.add('open');
+        if (typeof renderMathInElement === 'function') {
+          try {
+            renderMathInElement(modal, {
+              delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '\\(', right: '\\)', display: false }
+              ]
+            });
+          } catch (e) {
+            console.warn('[KaTeX] Error renderizando fórmulas en modal:', e);
+          }
+        }
+      }
     }
 
     function closeModal(modalId) {

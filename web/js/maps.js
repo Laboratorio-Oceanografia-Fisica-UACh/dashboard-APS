@@ -350,8 +350,10 @@ class DashboardMaps {
       const radLat = lat * Math.PI / 180;
       const cosLat = Math.cos(radLat);
 
-      // Fondo barométrico zonal-meridional (típico del Pacífico Suroriental)
-      const pEnv = 1014.5 - 0.38 * (lat - (-32.0));
+      // Fondo barométrico climatológico suave del Pacífico Suroriental
+      // Centrado en el cinturón subtropical (~32°S), decreciendo suavemente hacia el ecuador y hacia latitudes subantárticas
+      const dLatRidge = lat - (-32.0);
+      const pEnv = 1016.0 - (dLatRidge > 0 ? 0.35 * dLatRidge : 0.55 * Math.abs(dLatRidge));
 
       for (let j = 0; j < lons.length; j++) {
         const lon = lons[j];
@@ -365,20 +367,14 @@ class DashboardMaps {
 
         // Amplitud del domo anticiclónico
         const deltaCore = Math.max(0, maxPressure - pEnv);
-        const gaussian = deltaCore * Math.exp(-(Math.pow(xr / 13.5, 2) + Math.pow(yr / 7.2, 2)) / 2.0);
+        const gaussian = deltaCore * Math.exp(-(Math.pow(xr / 13.5, 2) + Math.pow(yr / 7.5, 2)) / 2.0);
 
         let pVal = pEnv + gaussian;
 
-        // Efecto orográfico de la Cordillera de los Andes: Vaguada costera / compresión barométrica
-        if (lon > -77.5) {
-          const distToCoast = (lon - (-77.5)) / 5.5;
-          pVal -= 1.35 * Math.pow(distToCoast, 2);
-        }
-
-        // Cinturón polar subantártico al sur de los 45°S (profundización de bajas presiones)
-        if (lat < -45.0) {
-          const distSouth = (lat - (-45.0));
-          pVal -= 0.22 * Math.pow(distSouth, 2);
+        // Efecto orográfico de la Cordillera de los Andes: Vaguada costera y compresión
+        if (lon > -76.5) {
+          const distToCoast = (lon - (-76.5)) / 6.0;
+          pVal -= 1.2 * Math.pow(distToCoast, 2);
         }
 
         row.push(parseFloat(pVal.toFixed(2)));

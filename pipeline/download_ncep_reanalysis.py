@@ -6,15 +6,21 @@ NCEP/NCAR Reanalysis 1 (NOAA PSL / NCEP).
 Acceso público directo sin necesidad de credenciales ni API keys.
 Laboratorio de Oceanografía Física (LOFA) - Universidad Austral de Chile (UACh)
 Licencia: GNU AGPLv3
+
+Versión 4.0:
+- Alineado con la ventana subtropical de subsidencia del APS (-20°S a -42°S).
+- Máscara oceánica estricta para evitar cualquier punto sobre la cordillera o la Patagonia.
 """
 
 import os
 import sys
+import glob
 import argparse
 import datetime
 import requests
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter
 
 # Dominio geográfico extendido del APS (LOFA UACh)
 LAT_NORTH = -10.0
@@ -22,13 +28,34 @@ LAT_SOUTH = -56.0
 LON_WEST = -130.0
 LON_EAST = -65.0
 
-# Ventana oceánica de seguimiento del núcleo
-TRACK_LAT_NORTH = -18.0
-TRACK_LAT_SOUTH = -54.0
-TRACK_LON_WEST = -125.0
-TRACK_LON_EAST = -72.0
+# Ventana oceánica subtropical de seguimiento del núcleo
+TRACK_LAT_NORTH = -20.0
+TRACK_LAT_SOUTH = -42.0
+TRACK_LON_WEST = -115.0
+TRACK_LON_EAST = -70.0
 
 NOAA_PSL_BASE_URL = "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/surface"
+
+
+def get_pacific_coastline_lon(lat):
+    """
+    Límite costero sudamericano para garantizar 100% detección marina en NCEP.
+    """
+    ref_lats = np.array([
+        -10.0, -12.0, -14.0, -16.0, -18.0,
+        -20.0, -24.0, -28.0, -30.0, -33.0,
+        -35.0, -37.0, -39.0, -41.0, -43.0,
+        -45.0, -46.5, -48.0, -50.0, -52.0,
+        -54.0, -56.0
+    ])
+    ref_lons = np.array([
+        -78.2, -77.2, -76.2, -74.0, -71.2,
+        -70.15, -70.4, -71.0, -71.35, -71.65,
+        -72.3, -73.5, -73.4, -73.8, -74.2,
+        -74.8, -75.7, -75.3, -75.4, -75.3,
+        -73.5, -68.5
+    ])
+    return np.interp(lat, ref_lats[::-1], ref_lons[::-1])
 
 
 def download_ncep_year(year, output_dir):
@@ -68,7 +95,8 @@ def download_ncep_year(year, output_dir):
 
 def process_ncep_files(input_dir, output_csv):
     """
-    Procesa los archivos NetCDF de NCEP/NCAR y extrae la serie diaria del núcleo del APS.
+    Procesa los archivos NetCDF de NCEP/NCAR y extrae la serie diaria del núcleo del APS
+    confortada con la máscara marina y ventana subtropical.
     """
     try:
         import xarray as xr
@@ -76,7 +104,6 @@ def process_ncep_files(input_dir, output_csv):
         print("[ERROR] Falta instalar xarray. Ejecuta: pip install xarray netcdf4")
         sys.exit(1)
 
-    import glob
     nc_files = glob.glob(os.path.join(input_dir, "slp.*.nc"))
     nc_files.sort()
 
@@ -91,7 +118,6 @@ def process_ncep_files(input_dir, output_csv):
         fname = os.path.basename(fpath)
         try:
             with xr.open_dataset(fpath) as ds:
-                # Variable de presión al nivel del mar (en Pascales)
                 var_name = "slp" if "slp" in ds else "msl"
                 slp_da = ds[var_name]
 
@@ -101,29 +127,38 @@ def process_ncep_files(input_dir, output_csv):
                     ds = ds.assign_coords(lon=(((ds["lon"] + 180) % 360) - 180)).sortby("lon")
                     slp_da = ds[var_name]
 
-                # Recorte al dominio oceánico
+                # Recorte al dominio oceánico subtropical
                 lats = ds["lat"].values
                 lat_mask = (lats <= TRACK_LAT_NORTH) & (lats >= TRACK_LAT_SOUTH)
                 lon_mask = (ds["lon"].values >= TRACK_LON_WEST) & (ds["lon"].values <= TRACK_LON_EAST)
 
-                # Convertir Pascales a hPa
-                sub = slp_da / 100.0
+                # Subconjunto
+                sub = (slp_da / 100.0).sel(lat=slice(TRACK_LAT_NORTH, TRACK_LAT_SOUTH) if lats[0] > lats[-1] else slice(TRACK_LAT_SOUTH, TRACK_LAT_NORTH),
+                                          lon=slice(TRACK_LON_WEST, TRACK_LON_EAST))
 
+                sub_lats = sub["lat"].values
+                sub_lons = sub["lon"].values
                 time_dim = "time"
                 times = sub[time_dim].values
 
+                lon_grid, lat_grid = np.meshgrid(sub_lons, sub_lats)
+                coast_limits = get_pacific_coastline_lon(sub_lats)[:, None]
+                ocean_mask = (lon_grid < coast_limits)
+
                 for t_idx, t in enumerate(times):
                     date_str = str(t)[:10]
-                    grid_2d = sub.isel({time_dim: t_idx}).values
+                    grid_2d = sub.isel({time_dim: t_idx}).values.copy()
+                    grid_2d[~ocean_mask] = np.nan
 
-                    # Aplicar máscara oceánica
-                    ocean_mask = np.outer(lat_mask, lon_mask)
-                    masked_grid = np.where(ocean_mask, grid_2d, np.nan)
+                    # Suavizado leve
+                    v = np.nan_to_num(grid_2d, nan=1010.0)
+                    smoothed = gaussian_filter(v, sigma=0.8)
+                    smoothed[~ocean_mask] = np.nan
 
-                    max_idx = np.unravel_index(np.nanargmax(masked_grid), masked_grid.shape)
-                    max_p = float(round(masked_grid[max_idx], 2))
-                    lat_c = float(round(lats[max_idx[0]], 2))
-                    lon_c = float(round(ds["lon"].values[max_idx[1]], 2))
+                    max_idx = np.unravel_index(np.nanargmax(smoothed), smoothed.shape)
+                    max_p = float(round(grid_2d[max_idx], 2))
+                    lat_c = float(round(sub_lats[max_idx[0]], 2))
+                    lon_c = float(round(sub_lons[max_idx[1]], 2))
 
                     dt = pd.to_datetime(date_str)
                     rows.append({
@@ -151,7 +186,7 @@ def process_ncep_files(input_dir, output_csv):
 def main():
     parser = argparse.ArgumentParser(description="Descargador de Reanálisis NCEP/NCAR (NOAA PSL) para el APS")
     parser.add_argument("--start-year", type=int, default=1948, help="Año inicial (mínimo: 1948)")
-    parser.add_argument("--end-year", type=int, default=2024, help="Año final")
+    parser.add_argument("--end-year", type=int, default=1972, help="Año final homólogo")
     parser.add_argument("--years", nargs="+", help="Años específicos (ej: --years 2022 2023)")
     parser.add_argument("--output-dir", type=str, default="data/raw/ncep_reanalysis", help="Directorio de destino")
     parser.add_argument("--output-csv", type=str, default="data/processed/ncep_daily_aps_metrics.csv", help="Ruta del CSV procesado")
