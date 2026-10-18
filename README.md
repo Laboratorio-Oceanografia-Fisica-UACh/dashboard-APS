@@ -10,6 +10,12 @@
   <img src="web/assets/img/logo_lofa.png" alt="Logo LOFA UACh" width="220"/>
 </p>
 
+
+> [!WARNING]
+> ### ⚠️ Estado del Proyecto: Fase Experimental y en Desarrollo Activo
+> **Este proyecto y su plataforma web se encuentran actualmente en fase de pruebas, calibración y desarrollo técnico.**  
+> Los datos, algoritmos de seguimiento, mapas e indicadores aquí presentados **NO están calificados como referencia definitiva ni 100% fidedigna para la navegación, operaciones marítimas, peritajes, faenas pesqueras ni toma de decisiones críticas o institucionales**. Su propósito en esta etapa es estrictamente experimental, académico y de investigación metodológica interna.
+
 ---
 
 ##  Acerca del Proyecto
