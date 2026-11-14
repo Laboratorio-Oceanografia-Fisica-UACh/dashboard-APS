@@ -1,9 +1,12 @@
 /**
  * maps.js
- * Visualización geoespacial interactiva del APS, isobaras sinópticas reales
- * (Marching Squares en rejilla 2D) y dinámica de surgencia costera de Bakun (UI).
- * Capa cartográfica científica ESRI Canvas libre de marcas de agua, graticule geodésico
- * y georreferenciación costera de Chile, Perú e islas del Pacífico Suroriental.
+ * Visualización geoespacial interactiva del Anticiclón del Pacífico Sur (APS / ASPS)
+ * Implementa Par Dinámico V5.3 (LOFA - UACh):
+ * - Núcleo Continuo Submalla 2D (+) y Centroide Barométrico Adaptativo (◇).
+ * - Vector Geodésico de Desacople Físico (Distancia D_nc y Rumbo Náutico θ).
+ * - Trazado de Isobaras Reales (Marching Squares 2D) con Isóbara 1020 hPa destacada.
+ * - Delimitación Cartográfica de la Caja Norpatagonia (Monitoreo de Bloqueos).
+ * - Libre al 100% de cálculos y capas de surgencia de Bakun.
  * Dominio espacial extendido LOFA: 10°S a 56°S, 130°W a 65°W
  * Laboratorio de Oceanografía Física (LOFA) - UACh
  */
@@ -25,7 +28,7 @@ class MarchingSquares {
     const cols = lons.length;
     const segments = [];
 
-    // 1. Recorrer cada celda cuadrangular
+    // Recorrer cada celda cuadrangular
     for (let i = 0; i < rows - 1; i++) {
       const lat0 = lats[i];
       const lat1 = lats[i + 1];
@@ -39,66 +42,68 @@ class MarchingSquares {
         const z2 = grid[i + 1][j + 1]; // Bottom-Right
         const z3 = grid[i + 1][j];     // Bottom-Left
 
-        let caseIndex = 0;
-        if (z0 >= level) caseIndex |= 8;
-        if (z1 >= level) caseIndex |= 4;
-        if (z2 >= level) caseIndex |= 2;
-        if (z3 >= level) caseIndex |= 1;
+        if (z0 === null || z1 === null || z2 === null || z3 === null ||
+            isNaN(z0) || isNaN(z1) || isNaN(z2) || isNaN(z3)) {
+          continue;
+        }
 
-        if (caseIndex === 0 || caseIndex === 15) continue;
+        // Determinar índice binario de estado (0 a 15)
+        let cellIndex = 0;
+        if (z0 >= level) cellIndex |= 8;
+        if (z1 >= level) cellIndex |= 4;
+        if (z2 >= level) cellIndex |= 2;
+        if (z3 >= level) cellIndex |= 1;
 
-        // Puntos de cruce en las 4 aristas mediante interpolación lineal
-        // Arista 0 (Top: z0 -> z1)
-        const t0 = (level - z0) / (z1 - z0 || 1e-9);
-        const pTop = [lat0, lon0 + t0 * (lon1 - lon0)];
+        if (cellIndex === 0 || cellIndex === 15) continue;
 
-        // Arista 1 (Right: z1 -> z2)
-        const t1 = (level - z1) / (z2 - z1 || 1e-9);
-        const pRight = [lat0 + t1 * (lat1 - lat0), lon1];
+        // Interpolaciones lineales en los 4 bordes de la celda
+        const t = (valA, valB) => {
+          const denom = valB - valA;
+          return Math.abs(denom) < 1e-6 ? 0.5 : (level - valA) / denom;
+        };
 
-        // Arista 2 (Bottom: z3 -> z2)
-        const t2 = (level - z3) / (z2 - z3 || 1e-9);
-        const pBottom = [lat1, lon0 + t2 * (lon1 - lon0)];
+        const top = [lat0, lon0 + t(z0, z1) * (lon1 - lon0)];
+        const right = [lat0 + t(z1, z2) * (lat1 - lat0), lon1];
+        const bottom = [lat1, lon0 + t(z3, z2) * (lon1 - lon0)];
+        const left = [lat0 + t(z0, z3) * (lat1 - lat0), lon0];
 
-        // Arista 3 (Left: z0 -> z3)
-        const t3 = (level - z0) / (z3 - z0 || 1e-9);
-        const pLeft = [lat0 + t3 * (lat1 - lat0), lon0];
-
-        switch (caseIndex) {
-          case 1:  segments.push([pLeft, pBottom]); break;
-          case 2:  segments.push([pBottom, pRight]); break;
-          case 3:  segments.push([pLeft, pRight]); break;
-          case 4:  segments.push([pTop, pRight]); break;
-          case 5:  segments.push([pTop, pLeft]); segments.push([pBottom, pRight]); break;
-          case 6:  segments.push([pTop, pBottom]); break;
-          case 7:  segments.push([pTop, pLeft]); break;
-          case 8:  segments.push([pTop, pLeft]); break;
-          case 9:  segments.push([pTop, pBottom]); break;
-          case 10: segments.push([pTop, pRight]); segments.push([pLeft, pBottom]); break;
-          case 11: segments.push([pTop, pRight]); break;
-          case 12: segments.push([pLeft, pRight]); break;
-          case 13: segments.push([pBottom, pRight]); break;
-          case 14: segments.push([pLeft, pBottom]); break;
+        switch (cellIndex) {
+          case 1: case 14: segments.push([left, bottom]); break;
+          case 2: case 13: segments.push([bottom, right]); break;
+          case 3: case 12: segments.push([left, right]); break;
+          case 4: case 11: segments.push([top, right]); break;
+          case 5:
+            segments.push([left, top]);
+            segments.push([bottom, right]);
+            break;
+          case 6: case 9: segments.push([top, bottom]); break;
+          case 7: case 8: segments.push([left, top]); break;
+          case 10:
+            segments.push([top, right]);
+            segments.push([left, bottom]);
+            break;
         }
       }
     }
 
-    // 2. Encadenar segmentos adyacentes en polilíneas continuas
     return this.stitchSegments(segments);
   }
 
+  /**
+   * Conecta segmentos aislados en polilíneas continuas cerradas o abiertas
+   */
   static stitchSegments(segments) {
     if (segments.length === 0) return [];
 
+    const tolerance = 0.05;
     const polylines = [];
-    const used = new Array(segments.length).fill(false);
-    const eps = 0.08; // Tolerancia angular en grados (~8 km)
+    const used = new Uint8Array(segments.length);
 
     for (let i = 0; i < segments.length; i++) {
       if (used[i]) continue;
-      used[i] = true;
 
       const poly = [segments[i][0], segments[i][1]];
+      used[i] = 1;
       let extended = true;
 
       while (extended) {
@@ -108,29 +113,26 @@ class MarchingSquares {
 
         for (let j = 0; j < segments.length; j++) {
           if (used[j]) continue;
-          const [pA, pB] = segments[j];
+          const seg = segments[j];
 
-          // Conexión a la cola
-          if (Math.hypot(tail[0] - pA[0], tail[1] - pA[1]) < eps) {
-            poly.push(pB);
-            used[j] = true;
+          if (Math.hypot(tail[0] - seg[0][0], tail[1] - seg[0][1]) < tolerance) {
+            poly.push(seg[1]);
+            used[j] = 1;
             extended = true;
             break;
-          } else if (Math.hypot(tail[0] - pB[0], tail[1] - pB[1]) < eps) {
-            poly.push(pA);
-            used[j] = true;
+          } else if (Math.hypot(tail[0] - seg[1][0], tail[1] - seg[1][1]) < tolerance) {
+            poly.push(seg[0]);
+            used[j] = 1;
             extended = true;
             break;
-          }
-          // Conexión a la cabeza
-          else if (Math.hypot(head[0] - pB[0], head[1] - pB[1]) < eps) {
-            poly.unshift(pA);
-            used[j] = true;
+          } else if (Math.hypot(head[0] - seg[1][0], head[1] - seg[1][1]) < tolerance) {
+            poly.unshift(seg[0]);
+            used[j] = 1;
             extended = true;
             break;
-          } else if (Math.hypot(head[0] - pA[0], head[1] - pA[1]) < eps) {
-            poly.unshift(pB);
-            used[j] = true;
+          } else if (Math.hypot(head[0] - seg[0][0], head[1] - seg[0][1]) < tolerance) {
+            poly.unshift(seg[1]);
+            used[j] = 1;
             extended = true;
             break;
           }
@@ -147,236 +149,193 @@ class MarchingSquares {
 }
 
 // =============================================================================
-// CLASE PRINCIPAL: DASHBOARD MAPS
+// CLASE PRINCIPAL: DASHBOARD MAPS (PAR DINÁMICO V5.3)
 // =============================================================================
 class DashboardMaps {
   constructor() {
     this.pressureMap = null;
     this.anomalyMap = null;
-    this.centerMarker = null;
-    this.anomalyCenterMarker = null;
-    this.isobarLayer = null;
-    this.upwellingLayer = null;
-    this.anomalyLayer = null;
-    this.currentDate = null;
-    this.showUpwellingLayer = true;
 
-    // 5 Estaciones costeras estratégicas de Chile para el Índice de Bakun UI
-    this.coastalStations = [
-      { id: 'arica', name: 'Arica', region: 'Norte Grande', coords: [-18.47, -70.31] },
-      { id: 'antofagasta', name: 'Antofagasta (Mejillones)', region: 'Norte', coords: [-23.65, -70.40] },
-      { id: 'valparaiso', name: 'Valparaíso (Curaumilla)', region: 'Chile Central', coords: [-33.04, -71.62] },
-      { id: 'concepcion', name: 'Concepción (Arauco)', region: 'Centro-Sur', coords: [-36.82, -73.05] },
-      { id: 'valdivia', name: 'Valdivia / Corral - Pto. Montt', region: 'Sur / Norpatagonia', coords: [-39.88, -73.40] }
-    ];
+    // Capas dinámicas
+    this.isobarLayer = null;
+    this.coreMarker = null;
+    this.centroidMarker = null;
+    this.decouplingLine = null;
+    this.patagoniaBoxLayer = null;
+    this.anomalyLayer = null;
+
+    this.currentDate = null;
 
     this.initMaps();
   }
 
   initMaps() {
-    const initialView = [-34.0, -92.0];
-    const initialZoom = 3.6;
+    const defaultCenter = [-34.5, -95.0];
+    const defaultZoom = 4;
+    const minZoom = 3;
+    const maxZoom = 9;
 
     const baseTileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
-    const refTileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}';
-    const tileAttrib = '&copy; Esri, DeLorme, NAVTEQ | LOFA UACh';
+    const tileOptions = {
+      attribution: 'Esri, HERE, Garmin, © OpenStreetMap',
+      subdomains: ['server', 'services'],
+      minZoom,
+      maxZoom
+    };
 
-    // 1. Mapa de Presión Atmosférica
+    // 1. Inicializar Mapa 1: Presión e Isobaras
     this.pressureMap = L.map('pressureMap', {
+      center: defaultCenter,
+      zoom: defaultZoom,
+      minZoom,
+      maxZoom,
       zoomControl: true,
-      attributionControl: false,
-      minZoom: 3,
-      maxZoom: 7
-    }).setView(initialView, initialZoom);
+      preferCanvas: true
+    });
 
-    L.tileLayer(baseTileUrl, { maxZoom: 8, attribution: tileAttrib }).addTo(this.pressureMap);
-    L.tileLayer(refTileUrl, { maxZoom: 8, opacity: 0.85 }).addTo(this.pressureMap);
+    L.tileLayer(baseTileUrl, tileOptions).addTo(this.pressureMap);
     this.isobarLayer = L.layerGroup().addTo(this.pressureMap);
-    this.upwellingLayer = L.layerGroup().addTo(this.pressureMap);
+    this.patagoniaBoxLayer = L.layerGroup().addTo(this.pressureMap);
 
-    // 2. Mapa de Anomalías
+    // 2. Inicializar Mapa 2: Campo de Anomalías de Presión
     this.anomalyMap = L.map('anomalyMap', {
+      center: defaultCenter,
+      zoom: defaultZoom,
+      minZoom,
+      maxZoom,
       zoomControl: true,
-      attributionControl: false,
-      minZoom: 3,
-      maxZoom: 7
-    }).setView(initialView, initialZoom);
+      preferCanvas: true
+    });
 
-    L.tileLayer(baseTileUrl, { maxZoom: 8, attribution: tileAttrib }).addTo(this.anomalyMap);
-    L.tileLayer(refTileUrl, { maxZoom: 8, opacity: 0.85 }).addTo(this.anomalyMap);
+    L.tileLayer(baseTileUrl, tileOptions).addTo(this.anomalyMap);
     this.anomalyLayer = L.layerGroup().addTo(this.anomalyMap);
 
-    // Capas complementarias
-    this.addCoordinateGraticule(this.pressureMap);
-    this.addCoordinateGraticule(this.anomalyMap);
-
-    this.addOceanographicLandmarks(this.pressureMap);
-    this.addOceanographicLandmarks(this.anomalyMap);
-
-    this.addAnomalyColorbar(this.anomalyMap);
-
-    // Sincronización bidireccional de paneo y zoom
+    // 3. Sincronizar encuadre y zoom bidireccional entre ambos mapas
     this.pressureMap.on('move', () => {
       this.anomalyMap.setView(this.pressureMap.getCenter(), this.pressureMap.getZoom(), { animate: false });
     });
+    this.anomalyMap.on('move', () => {
+      this.pressureMap.setView(this.anomalyMap.getCenter(), this.anomalyMap.getZoom(), { animate: false });
+    });
+
+    // 4. Agregar Graticule Geodésico y Referencias Costeras
+    this.addGraticule(this.pressureMap);
+    this.addGraticule(this.anomalyMap);
+    this.addGeographicReferences(this.pressureMap);
+    this.addGeographicReferences(this.anomalyMap);
+
+    // 5. Renderizar Polígono Fijo de la Caja Norpatagonia
+    this.renderPatagoniaBox();
   }
 
-  addCoordinateGraticule(mapInstance) {
-    const graticuleGroup = L.layerGroup().addTo(mapInstance);
+  addGraticule(mapInstance) {
+    const graticuleStyle = {
+      color: 'rgba(255, 255, 255, 0.08)',
+      weight: 1,
+      dashArray: '3, 4',
+      interactive: false
+    };
 
-    const latitudes = [-15, -20, -25, -30, -35, -40, -45, -50, -55];
-    latitudes.forEach(lat => {
-      L.polyline([[lat, -135], [lat, -65]], {
-        color: 'rgba(148, 163, 184, 0.22)',
-        weight: 1,
-        dashArray: '3, 4'
-      }).addTo(graticuleGroup);
+    const lats = [-20, -30, -40, -50];
+    const lons = [-70, -80, -90, -100, -110, -120];
 
-      L.marker([lat, -132], {
+    lats.forEach(lat => {
+      L.polyline([[lat, -130], [lat, -65]], graticuleStyle).addTo(mapInstance);
+      L.marker([lat, -125], {
         icon: L.divIcon({
           className: 'graticule-label',
           html: `${Math.abs(lat)}°S`,
-          iconSize: [36, 16],
-          iconAnchor: [18, 8]
+          iconSize: [36, 12],
+          iconAnchor: [18, 6]
         }),
         interactive: false
-      }).addTo(graticuleGroup);
+      }).addTo(mapInstance);
     });
 
-    const longitudes = [-130, -120, -110, -100, -90, -80, -70];
-    longitudes.forEach(lon => {
-      L.polyline([[-8, lon], [-58, lon]], {
-        color: 'rgba(148, 163, 184, 0.22)',
-        weight: 1,
-        dashArray: '3, 4'
-      }).addTo(graticuleGroup);
-
-      L.marker([-10, lon], {
+    lons.forEach(lon => {
+      L.polyline([[-10, lon], [-56, lon]], graticuleStyle).addTo(mapInstance);
+      L.marker([-14, lon], {
         icon: L.divIcon({
           className: 'graticule-label',
           html: `${Math.abs(lon)}°W`,
-          iconSize: [42, 16],
-          iconAnchor: [21, 8]
+          iconSize: [36, 12],
+          iconAnchor: [18, 6]
         }),
         interactive: false
-      }).addTo(graticuleGroup);
+      }).addTo(mapInstance);
     });
   }
 
-  addOceanographicLandmarks(mapInstance) {
-    const landmarks = [
-      { name: 'Lima (Perú)', coords: [-12.04, -77.03], type: 'port' },
-      { name: 'Arica', coords: [-18.47, -70.31], type: 'port' },
-      { name: 'Antofagasta', coords: [-23.65, -70.40], type: 'port' },
-      { name: 'Valparaíso', coords: [-33.04, -71.62], type: 'port' },
-      { name: 'Concepción', coords: [-36.82, -73.05], type: 'port' },
-      { name: 'Puerto Montt', coords: [-41.47, -72.94], type: 'port' },
-      { name: 'Castro (Chiloé)', coords: [-42.48, -73.77], type: 'port' },
-      { name: 'Golfo de Penas', coords: [-47.20, -75.00], type: 'oceanic' },
-      { name: 'Punta Arenas (Magallanes)', coords: [-53.16, -70.91], type: 'port' },
-      { name: 'Cabo de Hornos / Drake', coords: [-55.98, -67.27], type: 'oceanic' },
-      { name: 'Archipiélago Juan Fernández', coords: [-33.64, -78.83], type: 'island' },
-      { name: 'Rapa Nui (Isla de Pascua)', coords: [-27.12, -109.35], type: 'island' }
+  addGeographicReferences(mapInstance) {
+    const refPoints = [
+      { name: 'Valparaíso', lat: -33.04, lon: -71.62 },
+      { name: 'Antofagasta', lat: -23.65, lon: -70.40 },
+      { name: 'Pto. Montt', lat: -41.47, lon: -72.94 },
+      { name: 'Punta Arenas', lat: -53.16, lon: -70.91 },
+      { name: 'I. de Pascua', lat: -27.11, lon: -109.35 },
+      { name: 'I. Robinson Crusoe', lat: -33.64, lon: -78.83 }
     ];
 
-    landmarks.forEach(l => {
-      const isIsland = l.type === 'island';
-      const isOceanic = l.type === 'oceanic';
-      const markerColor = isIsland ? '#00d2ff' : (isOceanic ? '#ec4899' : '#f59e0b');
-
-      const marker = L.circleMarker(l.coords, {
-        radius: isIsland ? 4.5 : (isOceanic ? 4.0 : 3.5),
-        color: markerColor,
-        fillColor: '#ffffff',
-        fillOpacity: 0.95,
-        weight: 1.5
-      });
-
-      const iconSymbol = isIsland ? '🏝️' : (isOceanic ? '🌊' : '⚓');
-      marker.bindTooltip(`${iconSymbol} ${l.name}`, {
-        direction: 'right',
-        className: 'coastal-landmark',
-        offset: [6, 0]
-      });
-      marker.addTo(mapInstance);
+    refPoints.forEach(p => {
+      L.circleMarker([p.lat, p.lon], {
+        radius: 3.5,
+        color: '#60a5fa',
+        fillColor: '#38bdf8',
+        fillOpacity: 0.8,
+        weight: 1.5,
+        interactive: true
+      })
+      .bindTooltip(`📍 ${p.name}`, { permanent: false, direction: 'right', className: 'ref-point-tooltip' })
+      .addTo(mapInstance);
     });
   }
 
-  addAnomalyColorbar(mapInstance) {
-    const container = mapInstance.getContainer();
-    const legend = document.createElement('div');
-    legend.className = 'map-colorbar-legend';
-    legend.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 2px;">Anomalía de Presión (hPa)</div>
-      <div class="colorbar-bar"></div>
-      <div class="colorbar-labels">
-        <span>-4 hPa</span>
-        <span>0</span>
-        <span>+4 hPa</span>
-      </div>
-    `;
-    container.appendChild(legend);
+  renderPatagoniaBox() {
+    this.patagoniaBoxLayer.clearLayers();
+    // Caja Norpatagonia: [-45°S, -41°S] x [-78°W, -72°W]
+    const bounds = [[-45.0, -78.0], [-41.0, -72.0]];
+    L.rectangle(bounds, {
+      color: '#c084fc',
+      weight: 1.8,
+      dashArray: '5, 5',
+      fillColor: '#a855f7',
+      fillOpacity: 0.08
+    })
+    .bindTooltip(`<b>Caja Norpatagonia</b><br>[-45°S a -41°S, -78°W a -72°W]<br><small>Monitoreo de Bloqueos y Cuñas en Fiordos</small>`, {
+      sticky: true,
+      direction: 'top'
+    })
+    .addTo(this.patagoniaBoxLayer);
   }
 
-  toggleUpwellingLayer() {
-    this.showUpwellingLayer = !this.showUpwellingLayer;
-    if (this.showUpwellingLayer) {
-      this.pressureMap.addLayer(this.upwellingLayer);
-    } else {
-      this.pressureMap.removeLayer(this.upwellingLayer);
-    }
-    return this.showUpwellingLayer;
-  }
-
-  /**
-   * Genera el campo físico 2D de presión atmosférica (hPa) con deformaciones sinópticas realistas:
-   * Cresta subtropical elongada NW-SE, compresión costera contra la Cordillera de los Andes
-   * y gradiente polar de oestes (westerlies) en la Patagonia.
-   */
   generateSynopticPressureGrid(centerLat, centerLon, maxPressure) {
+    const latStep = 0.5;
+    const lonStep = 0.5;
     const lats = [];
-    for (let lat = -10.0; lat >= -56.0; lat -= 0.5) lats.push(parseFloat(lat.toFixed(1)));
     const lons = [];
-    for (let lon = -130.0; lon <= -65.0; lon += 0.5) lons.push(parseFloat(lon.toFixed(1)));
 
-    const tiltRad = -0.314; // Inclinación sinóptica hacia la costa de Chile (-18°)
-    const cosTilt = Math.cos(tiltRad);
-    const sinTilt = Math.sin(tiltRad);
+    for (let lat = -18.0; lat >= -48.0; lat -= latStep) {
+      lats.push(parseFloat(lat.toFixed(2)));
+    }
+    for (let lon = -120.0; lon <= -70.0; lon += lonStep) {
+      lons.push(parseFloat(lon.toFixed(2)));
+    }
 
     const grid = [];
+    const sigmaLat = 6.2;
+    const sigmaLon = 11.5;
+    const baseP = 1012.0;
+    const deltaP = Math.max(0, maxPressure - baseP);
+
     for (let i = 0; i < lats.length; i++) {
       const row = [];
-      const lat = lats[i];
-      const radLat = lat * Math.PI / 180;
-      const cosLat = Math.cos(radLat);
-
-      // Fondo barométrico climatológico suave del Pacífico Suroriental
-      // Centrado en el cinturón subtropical (~32°S), decreciendo suavemente hacia el ecuador y hacia latitudes subantárticas
-      const dLatRidge = lat - (-32.0);
-      const pEnv = 1016.0 - (dLatRidge > 0 ? 0.35 * dLatRidge : 0.55 * Math.abs(dLatRidge));
-
+      const y = lats[i];
       for (let j = 0; j < lons.length; j++) {
-        const lon = lons[j];
-
-        // Desplazamientos geométricos respecto al núcleo bárico
-        const dx = (lon - centerLon) * cosLat;
-        const dy = (lat - centerLat);
-
-        const xr = dx * cosTilt - dy * sinTilt;
-        const yr = dx * sinTilt + dy * cosTilt;
-
-        // Amplitud del domo anticiclónico
-        const deltaCore = Math.max(0, maxPressure - pEnv);
-        const gaussian = deltaCore * Math.exp(-(Math.pow(xr / 13.5, 2) + Math.pow(yr / 7.5, 2)) / 2.0);
-
-        let pVal = pEnv + gaussian;
-
-        // Efecto orográfico de la Cordillera de los Andes: Vaguada costera y compresión
-        if (lon > -76.5) {
-          const distToCoast = (lon - (-76.5)) / 6.0;
-          pVal -= 1.2 * Math.pow(distToCoast, 2);
-        }
-
+        const x = lons[j];
+        const dy = (y - centerLat) / sigmaLat;
+        const dx = (x - centerLon) / sigmaLon;
+        const r2 = dy * dy + dx * dx;
+        const pVal = baseP + deltaP * Math.exp(-0.5 * r2);
         row.push(parseFloat(pVal.toFixed(2)));
       }
       grid.push(row);
@@ -386,72 +345,104 @@ class DashboardMaps {
   }
 
   /**
-   * Actualiza el Mapa de Presión con curvas de nivel reales (Marching Squares)
-   * y vectores de viento/surgencia costera de Bakun en Chile.
+   * Actualiza el Mapa de Presión con el Par Dinámico V5.3:
+   * Núcleo Submalla (+), Centroide Adaptativo (◇), vector de desacople e isobara 1020 destacada.
    */
-  updatePressureMap(centerLat, centerLon, maxPressure, dateStr = null, isForecast = false, spatialGrid = null) {
+  updatePressureMap(coreLat, coreLon, maxPressure, centLat = null, centLon = null, dateStr = null, isForecast = false, spatialGrid = null, extraMetrics = {}) {
     this.isobarLayer.clearLayers();
-    this.upwellingLayer.clearLayers();
     this.currentDate = dateStr;
 
-    // 1. Marcador Sinóptico del Núcleo Bárico ('A' con pulso ámbar o pronóstico GFS)
-    const markerColor = isForecast ? '#10b981' : '#f59e0b';
-    const markerSymbol = isForecast ? 'A<sub>GFS</sub>' : 'A';
-    const centerIcon = L.divIcon({
-      className: 'aps-synoptic-center',
-      html: `
-        <div style="
-          width: 36px; 
-          height: 36px; 
-          background: ${isForecast ? 'rgba(16, 185, 129, 0.95)' : 'rgba(245, 158, 11, 0.95)'}; 
-          border: 2px solid #ffffff; 
-          border-radius: 50%; 
-          box-shadow: 0 0 20px ${markerColor}, 0 0 40px rgba(0, 0, 0, 0.6);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #0b1120;
-          font-weight: 900;
-          font-family: Outfit, sans-serif;
-          font-size: 15px;
-        ">${markerSymbol}</div>
-      `,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
+    const cLat = (centLat !== null && !isNaN(centLat)) ? centLat : coreLat;
+    const cLon = (centLon !== null && !isNaN(centLon)) ? centLon : coreLon;
+
+    // 1. Vector Geodésico de Desacople Físico (Línea discontinua Núcleo - Centroide)
+    const distKm = extraMetrics.dist_decoupling_km !== undefined ? extraMetrics.dist_decoupling_km : null;
+    const azimuth = extraMetrics.azimuth_deg !== undefined ? extraMetrics.azimuth_deg : null;
+
+    if (Math.abs(coreLat - cLat) > 0.05 || Math.abs(coreLon - cLon) > 0.05) {
+      const decouplingLine = L.polyline([[coreLat, coreLon], [cLat, cLon]], {
+        color: '#f43f5e',
+        weight: 2.5,
+        dashArray: '6, 6',
+        opacity: 0.95
+      });
+
+      let regimeLabel = 'Simetría Concéntrica';
+      if (distKm && distKm >= 200) {
+        if (azimuth >= 45 && azimuth < 135) regimeLabel = 'Cuña Costera (Chile Central)';
+        else if (azimuth >= 135 && azimuth < 225) regimeLabel = 'Bloqueo Patagónico Austral';
+        else regimeLabel = 'Elongación Oceánica';
+      }
+
+      decouplingLine.bindTooltip(`
+        <b>Vector de Desacople Morfológico:</b><br>
+        Distancia D<sub>nc</sub>: <b>${distKm ? distKm.toFixed(1) : '--'} km</b><br>
+        Rumbo: <b>${azimuth ? azimuth.toFixed(1) : '--'}°</b><br>
+        Régimen: <span style="color:#f43f5e; font-weight:700;">${regimeLabel}</span>
+      `, { sticky: true, direction: 'top' });
+
+      decouplingLine.addTo(this.isobarLayer);
+    }
+
+    // 2. Marcador 1: Núcleo Barométrico Continuo Submalla (+)
+    const coreIcon = L.divIcon({
+      className: 'aps-core-icon',
+      html: `<div class="aps-core-marker" title="Núcleo Continuo (Submalla 2D)">+</div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
     });
 
-    const forecastTag = isForecast ? `<span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700;">📡 PRONÓSTICO OPERATIVO GFS</span><br>` : '';
+    const forecastTag = isForecast ? `<span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700;">📡 PRONÓSTICO GFS</span><br>` : '';
     const dateNotice = dateStr ? `<div style="color: #64748b; font-size: 11px; margin-bottom: 3px;">Fecha: <b>${dateStr}</b></div>` : '';
 
-    this.centerMarker = L.marker([centerLat, centerLon], { icon: centerIcon })
+    this.coreMarker = L.marker([coreLat, coreLon], { icon: coreIcon })
       .bindPopup(`
         <div style="font-family: Outfit, sans-serif; color: #080e1e; padding: 6px; font-size: 13px;">
           ${forecastTag}
-          <strong style="color: #0284c7; font-size: 14px;">Núcleo Bárico del APS</strong><br>
+          <strong style="color: #d97706; font-size: 14px;">Núcleo Barométrico Submalla (+)</strong><br>
           ${dateNotice}
-          <b>Presión Central:</b> ${maxPressure.toFixed(1)} hPa<br>
-          <b>Coordenadas:</b> ${Math.abs(centerLat).toFixed(2)}°S, ${Math.abs(centerLon).toFixed(2)}°W<br>
-          <span style="color: #64748b; font-size: 11px;">Masa de aire subsidente subtropical/subantártica</span>
+          <b>Presión Máxima (P<sub>max</sub>):</b> ${maxPressure.toFixed(2)} hPa<br>
+          <b>Vértice Continuo:</b> ${Math.abs(coreLat).toFixed(2)}°S, ${Math.abs(coreLon).toFixed(2)}°W<br>
+          <span style="color: #64748b; font-size: 11px;">Cima continua calculada vía gradiente ∇P = 0 en ventana 5x5</span>
         </div>
       `)
       .addTo(this.isobarLayer);
 
-    // 2. Trazado de Isobaras Reales mediante Marching Squares sobre la rejilla 2D
-    // Si la rejilla coincide exactamente con la fecha activa la usamos; de lo contrario,
-    // generamos el campo sinóptico físico dinámico dependiente de la posición y presión de la fecha activa
+    // 3. Marcador 2: Centroide de Masa Barométrica Adaptativo (◇)
+    const centroidIcon = L.divIcon({
+      className: 'aps-centroid-icon',
+      html: `<div class="aps-centroid-marker" title="Centroide de Masa (Adaptativo)"><span>◇</span></div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
+    });
+
+    this.centroidMarker = L.marker([cLat, cLon], { icon: centroidIcon })
+      .bindPopup(`
+        <div style="font-family: Outfit, sans-serif; color: #080e1e; padding: 6px; font-size: 13px;">
+          <strong style="color: #0891b2; font-size: 14px;">Centroide Barométrico Adaptativo (◇)</strong><br>
+          ${dateNotice}
+          <b>Centro de Masa:</b> ${Math.abs(cLat).toFixed(2)}°S, ${Math.abs(cLon).toFixed(2)}°W<br>
+          <b>Extensión A<sub>1020</sub>:</b> ${extraMetrics.area_1020 !== undefined ? extraMetrics.area_1020.toFixed(2) : '--'} M km²<br>
+          <b>Volumen I<sub>vol</sub>:</b> ${extraMetrics.vol_integral !== undefined ? extraMetrics.vol_integral.toFixed(1) : '--'} hPa·M km²<br>
+          <span style="color: #64748b; font-size: 11px;">Centro ponderado por sobrepresión con umbral adaptativo flotante</span>
+        </div>
+      `)
+      .addTo(this.isobarLayer);
+
+    // 4. Trazado de Isobaras con Marching Squares 2D
     let field = null;
     if (spatialGrid && spatialGrid.current_slp && spatialGrid.lats && spatialGrid.lons && spatialGrid.date && spatialGrid.date === dateStr) {
       field = { lats: spatialGrid.lats, lons: spatialGrid.lons, grid: spatialGrid.current_slp };
     } else {
-      field = this.generateSynopticPressureGrid(centerLat, centerLon, maxPressure);
+      field = this.generateSynopticPressureGrid(coreLat, coreLon, maxPressure);
     }
 
     const isobarConfig = [
-      { p: 1028, color: '#f59e0b', weight: 2.3, dash: null },
-      { p: 1024, color: '#00d2ff', weight: 2.1, dash: null },
-      { p: 1020, color: '#00b4d8', weight: 1.7, dash: '6, 5' },
-      { p: 1016, color: '#0077b6', weight: 1.3, dash: '4, 4' },
-      { p: 1012, color: '#475569', weight: 1.0, dash: '3, 5' }
+      { p: 1028, color: '#f59e0b', weight: 2.4, dash: null, highlight: false },
+      { p: 1024, color: '#00d2ff', weight: 2.0, dash: null, highlight: false },
+      { p: 1020, color: '#f59e0b', weight: 3.2, dash: null, highlight: true }, // ISÓBARA CRÍTICA DESTACADA
+      { p: 1016, color: '#0077b6', weight: 1.4, dash: '5, 4', highlight: false },
+      { p: 1012, color: '#475569', weight: 1.1, dash: '3, 4', highlight: false }
     ];
 
     isobarConfig.forEach(iso => {
@@ -461,22 +452,26 @@ class DashboardMaps {
         polylines.forEach((poly, polyIdx) => {
           if (poly.length < 3) return;
 
-          L.polyline(poly, {
+          const polylineObj = L.polyline(poly, {
             color: iso.color,
             weight: iso.weight,
             dashArray: iso.dash,
-            opacity: 0.92,
+            opacity: iso.highlight ? 0.98 : 0.88,
             smoothFactor: 1.2
-          })
-          .bindTooltip(`Isobara ${iso.p} hPa (Marching Squares)`, { permanent: false, direction: 'top', sticky: true })
-          .addTo(this.isobarLayer);
+          });
 
-          // Etiqueta de la isobara en el punto medio de la línea
+          const tooltipText = iso.highlight ?
+            `⭐ <b>Isóbara Crítica de 1020 hPa</b> (Límite del Domo Barométrico)` :
+            `Isobara ${iso.p} hPa (Marching Squares)`;
+
+          polylineObj.bindTooltip(tooltipText, { permanent: false, direction: 'top', sticky: true });
+          polylineObj.addTo(this.isobarLayer);
+
           if (polyIdx === 0 && poly.length > 8) {
             const midPt = poly[Math.floor(poly.length / 2)];
             L.marker(midPt, {
               icon: L.divIcon({
-                className: 'isobar-label-inline',
+                className: iso.highlight ? 'isobar-label-inline highlighted-1020' : 'isobar-label-inline',
                 html: `${iso.p}`,
                 iconSize: [28, 14],
                 iconAnchor: [14, 7]
@@ -488,228 +483,55 @@ class DashboardMaps {
       }
     });
 
-    // 3. Renderizar Capa Dinámica de Vientos y Surgencia Costera (Bakun UI)
-    const upwellingMetrics = this.calculateUpwellingMetrics(centerLat, centerLon, maxPressure, field);
-    this.renderUpwellingLayer(upwellingMetrics);
-
-    // 4. Actualizar badge de coordenadas en cabecera del mapa
+    // 5. Actualizar badge de coordenadas en cabecera del mapa
     const badge = document.getElementById('mapCenterCoordBadge');
     if (badge) {
       const datePrefix = dateStr ? `[${dateStr}] ` : '';
-      const forecastLabel = isForecast ? '📡 GFS: ' : 'Núcleo: ';
-      badge.textContent = `${datePrefix}${forecastLabel}${Math.abs(centerLat).toFixed(1)}°S, ${Math.abs(centerLon).toFixed(1)}°W (${maxPressure.toFixed(1)} hPa)`;
+      const forecastLabel = isForecast ? '📡 GFS: ' : 'Par Dinámico: ';
+      badge.textContent = `${datePrefix}${forecastLabel}Núcleo ${Math.abs(coreLat).toFixed(1)}°S, ${Math.abs(coreLon).toFixed(1)}°W | Cent: ${Math.abs(cLat).toFixed(1)}°S, ${Math.abs(cLon).toFixed(1)}°W`;
     }
-
-    return upwellingMetrics;
   }
 
   /**
-   * Calcula el Índice de Surgencia de Bakun (UI) y viento geostrófico/superficial
-   * para las 5 estaciones costeras clave en base al gradiente barométrico zonal.
+   * Actualiza el Mapa de Anomalías Superficiales
    */
-  calculateUpwellingMetrics(centerLat, centerLon, maxPressure, field) {
-    const rhoAir = 1.225; // kg/m^3
-    const rhoWater = 1025.0; // kg/m^3
-    const Cd = 0.0013; // Coeficiente de arrastre (Large & Pond)
-    const omega = 7.2921e-5; // rad/s rotación terrestre
-
-    return this.coastalStations.map(st => {
-      const [latSt, lonSt] = st.coords;
-      const f = 2.0 * omega * Math.sin(latSt * Math.PI / 180); // Parámetro de Coriolis (< 0 en Hemisferio Sur)
-
-      // Gradiente de presión zonal (costa vs 6° mar adentro)
-      const lonOcean = lonSt - 6.0;
-      const pCoast = this.sampleField(field, latSt, lonSt);
-      const pOcean = this.sampleField(field, latSt, lonOcean);
-
-      const deltaX = 6.0 * 111.0 * Math.cos(latSt * Math.PI / 180) * 1000; // Distancia en metros
-      const dpDx = ((pCoast - pOcean) * 100.0) / (deltaX || 1.0); // Pa / metro
-
-      // Viento geostrófico meridional (v_g = (1 / (rho_a * f)) * (dP / dx))
-      // f < 0, cuando pOcean > pCoast -> dpDx < 0 -> v_g > 0 (viento del sur favorable a surgencia)
-      const vg = (1.0 / (rhoAir * f)) * dpDx;
-
-      // Viento a 10m en la capa límite atmosférica marina (factor de fricción ~0.75)
-      const v10 = 0.75 * vg;
-      const speedKnots = Math.abs(v10) * 1.94384;
-
-      // Esfuerzo cortante del viento meridional (tau_y = rho_a * Cd * |V| * v_10)
-      const tauY = rhoAir * Cd * Math.abs(v10) * v10;
-
-      // Índice de Surgencia de Bakun (UI = tau_y / (rho_w * |f|) * 1000) [m^3 / (s * km de costa)]
-      const ui = (tauY / (rhoWater * Math.abs(f))) * 1000.0;
-
-      // Clasificación oceanográfica
-      let statusClass = 'badge-ui-weak';
-      let statusText = 'Débil / Neutro';
-      let statusColor = '#94a3b8';
-
-      if (ui > 600) {
-        statusClass = 'badge-ui-intense';
-        statusText = 'Muy Intensa (Chorro Costero)';
-        statusColor = '#10b981';
-      } else if (ui > 300) {
-        statusClass = 'badge-ui-strong';
-        statusText = 'Fuerte (AESS Favorable)';
-        statusColor = '#00d2ff';
-      } else if (ui > 80) {
-        statusClass = 'badge-ui-moderate';
-        statusText = 'Moderada';
-        statusColor = '#f59e0b';
-      } else if (ui < 0) {
-        statusClass = 'badge-ui-downwelling';
-        statusText = 'Hundimiento (Downwelling)';
-        statusColor = '#c084fc';
-      }
-
-      return {
-        id: st.id,
-        name: st.name,
-        region: st.region,
-        coords: st.coords,
-        pCoast: pCoast,
-        pOcean: pOcean,
-        dpDx: dpDx,
-        v10: v10,
-        speedKnots: speedKnots,
-        tauY: tauY,
-        ui: ui,
-        statusText: statusText,
-        statusClass: statusClass,
-        statusColor: statusColor
-      };
-    });
-  }
-
-  sampleField(field, lat, lon) {
-    if (!field || !field.grid) return 1018.0;
-    const lats = field.lats;
-    const lons = field.lons;
-
-    // Encontrar índices más cercanos
-    let i = lats.findIndex(l => l <= lat);
-    if (i === -1) i = lats.length - 1;
-    let j = lons.findIndex(l => l >= lon);
-    if (j === -1) j = lons.length - 1;
-
-    return field.grid[i] && field.grid[i][j] !== undefined ? field.grid[i][j] : 1018.0;
-  }
-
-  renderUpwellingLayer(metrics) {
-    metrics.forEach(m => {
-      // Flecha de viento: altura proporcional a la intensidad del viento
-      const arrowHeight = Math.max(16, Math.min(48, Math.abs(m.v10) * 3.2));
-      const isUpwelling = m.v10 >= 0; // Viento del sur -> sopla hacia el norte (arriba)
-      const arrowRotation = isUpwelling ? 0 : 180; // Apunta arriba (norte) o abajo (sur)
-
-      const markerHtml = `
-        <div class="upwelling-map-marker" style="color: ${m.statusColor}; position: relative;">
-          <div class="upwelling-dot" style="background: ${m.statusColor};"></div>
-          <svg class="upwelling-wind-arrow-svg" width="20" height="${arrowHeight}" viewBox="0 0 20 ${arrowHeight}" style="position: absolute; bottom: 8px; transform: rotate(${arrowRotation}deg); transform-origin: bottom center;">
-            <defs>
-              <marker id="arrowhead-${m.id}" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                <polygon points="0 0, 6 3, 0 6" fill="${m.statusColor}" />
-              </marker>
-            </defs>
-            <line x1="10" y1="${arrowHeight}" x2="10" y2="4" stroke="${m.statusColor}" stroke-width="2.5" marker-end="url(#arrowhead-${m.id})" />
-          </svg>
-        </div>
-      `;
-
-      const marker = L.marker(m.coords, {
-        icon: L.divIcon({
-          className: 'upwelling-leaflet-icon',
-          html: markerHtml,
-          iconSize: [20, arrowHeight + 10],
-          iconAnchor: [10, arrowHeight + 5]
-        })
-      });
-
-      marker.bindPopup(`
-        <div style="font-family: Outfit, sans-serif; font-size: 13px; color: #080e1e; padding: 4px; min-width: 200px;">
-          <strong style="color: #0284c7; font-size: 14px;">⚓ ${m.name}</strong><br>
-          <span style="color: #64748b; font-size: 11px;">${m.region} (${Math.abs(m.coords[0]).toFixed(1)}°S)</span>
-          <hr style="margin: 6px 0; border: none; border-top: 1px solid #e2e8f0;">
-          <b>Índice Bakun (UI):</b> <span style="color: ${m.statusColor}; font-weight: 700; font-family: monospace;">${m.ui > 0 ? '+' : ''}${m.ui.toFixed(0)} m³/(s·km)</span><br>
-          <b>Estado:</b> <span class="badge-ui ${m.statusClass}">${m.statusText}</span><br>
-          <b>Viento a 10m:</b> ${m.speedKnots.toFixed(1)} kt (${m.v10 >= 0 ? 'Sur / Favorable' : 'Norte / Desfavorable'})<br>
-          <b>Esfuerzo \(\tau_y\):</b> ${m.tauY.toFixed(3)} N/m²<br>
-          <b>Gradiente \(\partial P/\partial x\):</b> ${(m.dpDx * 1000).toFixed(2)} mPa/m
-        </div>
-      `);
-
-      marker.addTo(this.upwellingLayer);
-    });
-  }
-
-  /**
-   * Actualiza el Mapa de Anomalías con la cuadrícula espacial y contorno del dominio extendido LOFA
-   */
-  updateAnomalyMap(centerLat, centerLon, spatialGrid, activeDate = null, climBaseline = 1022.0) {
+  updateAnomalyMap(spatialGrid, centerLat, centerLon, maxPressure) {
     this.anomalyLayer.clearLayers();
-    if (!spatialGrid || !spatialGrid.current_anomaly) return;
 
-    const lats = spatialGrid.lats;
-    const lons = spatialGrid.lons;
-    const anomalies = spatialGrid.current_anomaly;
+    if (spatialGrid && spatialGrid.current_anomaly && spatialGrid.lats && spatialGrid.lons) {
+      const lats = spatialGrid.lats;
+      const lons = spatialGrid.lons;
+      const anomGrid = spatialGrid.current_anomaly;
 
-    const latStep = Math.abs(lats[1] - lats[0]);
-    const lonStep = Math.abs(lons[1] - lons[0]);
+      const levels = [-6, -4, -2, 2, 4, 6];
+      levels.forEach(lvl => {
+        const isPos = lvl > 0;
+        const color = isPos ? (lvl >= 4 ? '#ef4444' : '#f97316') : (lvl <= -4 ? '#3b82f6' : '#06b6d4');
+        const polylines = MarchingSquares.contour(anomGrid, lats, lons, lvl);
 
-    for (let i = 0; i < lats.length; i++) {
-      for (let j = 0; j < lons.length; j++) {
-        const val = anomalies[i][j];
-        if (Math.abs(val) < 0.25) continue;
-
-        const isPositive = val > 0;
-        let color = isPositive ? '#ef4444' : '#00b4d8';
-        if (val > 2.0) color = '#b91c1c';
-        if (val < -2.0) color = '#0284c7';
-
-        const opacity = Math.min(0.68, Math.max(0.20, Math.abs(val) / 3.8));
-
-        const bounds = [
-          [lats[i] - latStep / 2, lons[j] - lonStep / 2],
-          [lats[i] + latStep / 2, lons[j] + lonStep / 2]
-        ];
-
-        L.rectangle(bounds, {
-          color: color,
-          fillColor: color,
-          fillOpacity: opacity,
-          weight: 0.3,
-          opacity: 0.4
-        })
-        .bindTooltip(`
-          <div style="font-family: Outfit, sans-serif; font-size: 11px;">
-            <b>${Math.abs(lats[i]).toFixed(1)}°S, ${Math.abs(lons[j]).toFixed(1)}°W</b><br>
-            <span style="color: ${isPositive ? '#f87171' : '#38bdf8'}; font-weight: 700;">
-              Anomalía: ${val > 0 ? '+' : ''}${val.toFixed(2)} hPa
-            </span>
-          </div>
-        `, {
-          direction: 'top',
-          sticky: true
-        })
-        .addTo(this.anomalyLayer);
-      }
+        polylines.forEach(poly => {
+          if (poly.length < 3) return;
+          L.polyline(poly, {
+            color: color,
+            weight: 1.8,
+            dashArray: isPos ? null : '4, 4',
+            opacity: 0.85
+          })
+          .bindTooltip(`Anomalía ${lvl > 0 ? '+' : ''}${lvl} hPa`, { sticky: true })
+          .addTo(this.anomalyLayer);
+        });
+      });
     }
 
-    // Contorno oficial del dominio extendido de estudio de LOFA (10°S a 56°S y 130°W a 65°W)
-    L.rectangle([[-56.0, -130.0], [-10.0, -65.0]], {
-      color: '#00d2ff',
-      weight: 1.5,
-      dashArray: '5, 5',
-      fill: false
-    }).addTo(this.anomalyLayer);
-
-    this.anomalyCenterMarker = L.circleMarker([centerLat, centerLon], {
+    // Marcador de referencia del centro
+    L.circleMarker([centerLat, centerLon], {
       radius: 6,
       color: '#ffffff',
       fillColor: '#f59e0b',
       fillOpacity: 0.9,
       weight: 2
-    }).bindTooltip(`Centro Bárico APS: ${Math.abs(centerLat).toFixed(1)}°S, ${Math.abs(centerLon).toFixed(1)}°W`, { direction: 'top' })
-      .addTo(this.anomalyLayer);
+    })
+    .bindTooltip(`Centro APS: ${maxPressure.toFixed(1)} hPa`)
+    .addTo(this.anomalyLayer);
   }
 }

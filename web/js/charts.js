@@ -1,7 +1,12 @@
 /**
  * charts.js
- * Visualización de series de tiempo científicas multimodelo con Plotly.js
- * Resuelve el bug de compresión vertical de leyenda y soporta presets climáticos históricos
+ * Visualización de series de tiempo científicas multimodelo y Diagrama de Fase 2D con Plotly.js
+ * Implementa V5.3 (LOFA - UACh):
+ * - Diagrama de Fase Espacial 2D (Longitud vs. Latitud) con cuadrantes de régimen sinóptico.
+ * - Series temporales del Par Dinámico (Núcleo submalla y Centroide adaptativo).
+ * - Gráfico de Morfología y Contenido Energético (Área A1020 y Masa Integrada I_vol).
+ * - Gráfico de Diagnóstico de Bloqueos (Desacople D_nc y Presión Caja Norpatagonia).
+ * - Soporta Presets Climáticos Documentados y selección de rangos temporales.
  * Laboratorio de Oceanografía Física (LOFA) - UACh
  */
 
@@ -13,6 +18,7 @@ class DashboardCharts {
     this.currentRange = '365';
     this.customStartDate = null;
     this.customEndDate = null;
+    this.activeTab = 'phase'; // 'phase', 'timeseries', 'morphology', 'decoupling'
 
     this.initControls();
   }
@@ -27,7 +33,6 @@ class DashboardCharts {
         this.customStartDate = null;
         this.customEndDate = null;
 
-        // Resetear inputs de fechas y select de presets
         const presetSelect = document.getElementById('climatePresetsSelect');
         if (presetSelect) presetSelect.value = '';
         const fromInput = document.getElementById('chartDateFrom');
@@ -35,7 +40,6 @@ class DashboardCharts {
         if (fromInput) fromInput.value = '';
         if (toInput) toInput.value = '';
 
-        // Sincronizar todos los grupos de chips
         document.querySelectorAll('.chart-controls .btn-chip').forEach((b) => {
           b.classList.toggle('active', b.dataset.range === selectedRange);
         });
@@ -44,7 +48,7 @@ class DashboardCharts {
       });
     });
 
-    // 2. Presets climáticos científicos preconfigurados
+    // 2. Presets climáticos científicos
     const presetSelect = document.getElementById('climatePresetsSelect');
     if (presetSelect) {
       presetSelect.addEventListener('change', (e) => {
@@ -56,15 +60,13 @@ class DashboardCharts {
 
         if (isPending) {
           this.showScientificToast(
-            `El evento <strong>${selectedOpt.textContent.trim()}</strong> está en proceso de ingesta histórica en segundo plano.<br><small style="color:#94a3b8;">La base activa actual cubre desde 1940 en adelante.</small>`
+            `El evento <strong>${selectedOpt.textContent.trim()}</strong> está en proceso de ingesta histórica en segundo plano.<br><small style="color:#94a3b8;">La base activa actual cubre desde 1994 en adelante.</small>`
           );
         }
 
-        // Desactivar chips rápidos
         document.querySelectorAll('.chart-controls .btn-chip').forEach((b) => b.classList.remove('active'));
 
         if (val === 'forecast') {
-          // Activar modelo GFS y enfocar ventana temporal del pronóstico
           const gfsModel = Object.values(this.models).find(m => m.id === 'noaa_gfs_forecast');
           if (gfsModel && gfsModel.dates && gfsModel.dates.length > 0) {
             this.modelSelector.selectedModelIds.add('noaa_gfs_forecast');
@@ -94,14 +96,13 @@ class DashboardCharts {
 
         this.updateCharts();
 
-        // Notificar fecha inicial del preset si hay callback
         if (this.onDateSelected && this.customStartDate) {
           this.onDateSelected(this.customStartDate);
         }
       });
     }
 
-    // 3. Filtro por rango personalizado (Desde / Hasta)
+    // 3. Filtro por rango personalizado
     const applyRangeBtn = document.getElementById('applyCustomDateRangeBtn');
     if (applyRangeBtn) {
       applyRangeBtn.addEventListener('click', () => {
@@ -122,10 +123,12 @@ class DashboardCharts {
       });
     }
 
-    // 4. Redimensionamiento adaptativo en ventanas
+    // 4. Redimensionamiento adaptativo
     window.addEventListener('resize', () => {
-      Plotly.Plots.resize('positionChart');
-      Plotly.Plots.resize('pressureChart');
+      ['phaseSpaceChart', 'positionChart', 'pressureChart', 'morphologyChart', 'decouplingChart'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.data) Plotly.Plots.resize(id);
+      });
     });
   }
 
@@ -136,6 +139,8 @@ class DashboardCharts {
   }
 
   filterDataByRange(dates, values) {
+    if (!dates || !values) return { dates: [], values: [] };
+
     if (this.currentRange === 'custom' && this.customStartDate && this.customEndDate) {
       const filteredDates = [];
       const filteredValues = [];
@@ -162,11 +167,156 @@ class DashboardCharts {
   }
 
   updateCharts() {
+    this.renderPhaseSpaceChart();
     this.renderPositionChart();
     this.renderPressureChart();
+    this.renderMorphologyChart();
+    this.renderDecouplingChart();
   }
 
+  /**
+   * 1. Diagrama de Fase Espacial 2D: Longitud vs. Latitud (LOFA - UACh)
+   */
+  renderPhaseSpaceChart() {
+    const el = document.getElementById('phaseSpaceChart');
+    if (!el) return;
+
+    const traces = [];
+    const era5 = this.models['ERA5 Reanálisis'] || Object.values(this.models)[0];
+    if (!era5) return;
+
+    const filteredDates = this.filterDataByRange(era5.dates, era5.dates).dates;
+    if (filteredDates.length === 0) return;
+
+    const sliceIdx = era5.dates.indexOf(filteredDates[0]);
+    const endIdx = era5.dates.indexOf(filteredDates[filteredDates.length - 1]) + 1;
+
+    const coreLats = (era5.lat_core || era5.lat).slice(sliceIdx, endIdx);
+    const coreLons = (era5.lon_core || era5.lon).slice(sliceIdx, endIdx);
+    const centLats = (era5.lat_centroid || era5.lat).slice(sliceIdx, endIdx);
+    const centLons = (era5.lon_centroid || era5.lon).slice(sliceIdx, endIdx);
+    const pVals = (era5.p_max_fit || era5.pressure_psa).slice(sliceIdx, endIdx);
+
+    // Traza Núcleo (+)
+    traces.push({
+      x: coreLons,
+      y: coreLats,
+      mode: 'lines+markers',
+      name: 'Núcleo Barométrico (+)',
+      marker: {
+        size: 7,
+        color: '#fbbf24',
+        symbol: 'circle',
+        line: { color: '#000', width: 1 }
+      },
+      line: { color: '#fbbf24', width: 2.2, shape: 'spline' },
+      text: filteredDates.map((d, i) => `${d}<br>P_max: ${pVals[i]} hPa`),
+      hovertemplate: '<b>Núcleo (+)</b><br>Fecha: %{text}<br>Lon: %{x:.2f}°W<br>Lat: %{y:.2f}°S<extra></extra>'
+    });
+
+    // Traza Centroide (◇)
+    traces.push({
+      x: centLons,
+      y: centLats,
+      mode: 'lines+markers',
+      name: 'Centroide de Masa (◇)',
+      marker: {
+        size: 7,
+        color: '#06b6d4',
+        symbol: 'diamond',
+        line: { color: '#fff', width: 1 }
+      },
+      line: { color: '#06b6d4', width: 1.8, dash: 'dot', shape: 'spline' },
+      text: filteredDates,
+      hovertemplate: '<b>Centroide (◇)</b><br>Fecha: %{text}<br>Lon: %{x:.2f}°W<br>Lat: %{y:.2f}°S<extra></extra>'
+    });
+
+    // Punto más reciente destacado
+    if (coreLats.length > 0) {
+      traces.push({
+        x: [coreLons[coreLons.length - 1]],
+        y: [coreLats[coreLats.length - 1]],
+        mode: 'markers',
+        name: 'Núcleo Activo',
+        marker: { size: 14, color: '#f59e0b', symbol: 'star', line: { color: '#fff', width: 1.5 } },
+        showlegend: false,
+        hoverinfo: 'skip'
+      });
+      traces.push({
+        x: [centLons[centLons.length - 1]],
+        y: [centLats[centLats.length - 1]],
+        mode: 'markers',
+        name: 'Centroide Activo',
+        marker: { size: 12, color: '#06b6d4', symbol: 'diamond', line: { color: '#fff', width: 2 } },
+        showlegend: false,
+        hoverinfo: 'skip'
+      });
+    }
+
+    const layout = {
+      title: false,
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'rgba(11, 17, 32, 0.65)',
+      font: { family: 'Outfit, sans-serif', color: '#cbd5e1' },
+      margin: { l: 55, r: 25, t: 30, b: 50 },
+      xaxis: {
+        title: 'Longitud (°W)',
+        color: '#94a3b8',
+        gridcolor: 'rgba(255, 255, 255, 0.06)',
+        range: [-120.0, -70.0],
+        zeroline: false
+      },
+      yaxis: {
+        title: 'Latitud (°S)',
+        color: '#94a3b8',
+        gridcolor: 'rgba(255, 255, 255, 0.06)',
+        range: [-48.0, -18.0],
+        zeroline: false
+      },
+      legend: {
+        orientation: 'h',
+        x: 0.0,
+        y: 1.15,
+        font: { size: 11 }
+      },
+      annotations: [
+        {
+          x: -110, y: -22,
+          text: '<b>Retracción Oceánica</b>',
+          showarrow: false,
+          font: { size: 10, color: 'rgba(96, 165, 250, 0.5)' }
+        },
+        {
+          x: -78, y: -22,
+          text: '<b>Cuña Costera (Chile Central)</b>',
+          showarrow: false,
+          font: { size: 10, color: 'rgba(251, 191, 36, 0.6)' }
+        },
+        {
+          x: -78, y: -45,
+          text: '<b>Bloqueo Patagónico Austral</b>',
+          showarrow: false,
+          font: { size: 10, color: 'rgba(248, 113, 113, 0.6)' }
+        },
+        {
+          x: -105, y: -38,
+          text: '<b>Simetría Estival Típica</b>',
+          showarrow: false,
+          font: { size: 10, color: 'rgba(52, 211, 153, 0.5)' }
+        }
+      ]
+    };
+
+    Plotly.react('phaseSpaceChart', traces, layout, { responsive: true, displayModeBar: false });
+  }
+
+  /**
+   * 2. Serie Temporal: Posición Latitud y Longitud del Par Dinámico
+   */
   renderPositionChart() {
+    const el = document.getElementById('positionChart');
+    if (!el) return;
+
     const selectedIds = this.modelSelector.getSelectedModelIds();
     const traces = [];
 
@@ -174,78 +324,90 @@ class DashboardCharts {
       if (!selectedIds.includes(model.id)) continue;
 
       const color = this.modelSelector.getModelColor(model.id);
+      const latCoreVals = model.lat_core || model.lat;
+      const lonCoreVals = model.lon_core || model.lon;
+      const latCentVals = model.lat_centroid || model.lat;
+      const lonCentVals = model.lon_centroid || model.lon;
 
-      // Traza Latitud
-      const latData = this.filterDataByRange(model.dates, model.lat);
-      const useSpline = latData.values.length <= 365;
+      const latData = this.filterDataByRange(model.dates, latCoreVals);
+      const lonData = this.filterDataByRange(model.dates, lonCoreVals);
+      const latCentData = this.filterDataByRange(model.dates, latCentVals);
+
       traces.push({
         x: latData.dates,
         y: latData.values,
         mode: 'lines',
-        name: `${model.name} (Lat)`,
-        line: { color: color, width: 2.0, shape: useSpline ? 'spline' : 'linear' },
-        hovertemplate: '<b>%{x}</b><br>Latitud: %{y:.2f}°S<extra></extra>',
+        name: `${model.name} (Núcleo Lat)`,
+        line: { color: color, width: 2.0 },
+        hovertemplate: '<b>%{x}</b><br>Núcleo Lat: %{y:.2f}°S<extra></extra>',
         yaxis: 'y1'
       });
 
-      // Traza Longitud (línea discontinua)
-      const lonData = this.filterDataByRange(model.dates, model.lon);
+      if (model.lat_centroid) {
+        traces.push({
+          x: latCentData.dates,
+          y: latCentData.values,
+          mode: 'lines',
+          name: `${model.name} (Cent. Lat)`,
+          line: { color: color, width: 1.4, dash: 'dot' },
+          hovertemplate: '<b>%{x}</b><br>Cent. Lat: %{y:.2f}°S<extra></extra>',
+          yaxis: 'y1'
+        });
+      }
+
       traces.push({
         x: lonData.dates,
         y: lonData.values,
         mode: 'lines',
-        name: `${model.name} (Lon)`,
-        line: { color: color, width: 1.6, dash: 'dot', shape: useSpline ? 'spline' : 'linear' },
-        hovertemplate: '<b>%{x}</b><br>Longitud: %{y:.2f}°W<extra></extra>',
+        name: `${model.name} (Núcleo Lon)`,
+        line: { color: color, width: 1.6, dash: 'dash' },
+        hovertemplate: '<b>%{x}</b><br>Núcleo Lon: %{y:.2f}°W<extra></extra>',
         yaxis: 'y2'
       });
     }
 
-    const showSlider = this.currentRange === 'all' || this.currentRange === '1825';
-
-    // Layout con leyenda ubicada en el borde inferior con paginación limpia (Solución Bug de Achatamiento)
     const layout = {
+      title: false,
       paper_bgcolor: 'transparent',
-      plot_bgcolor: 'rgba(9, 15, 30, 0.6)',
-      font: { family: 'Outfit, sans-serif', color: '#94a3b8' },
-      margin: { l: 50, r: 50, t: 25, b: showSlider ? 95 : 65 },
-      showlegend: true,
-      legend: {
-        orientation: 'h',
-        yanchor: 'top',
-        y: showSlider ? -0.32 : -0.22,
-        xanchor: 'center',
-        x: 0.5,
-        font: { size: 10, color: '#cbd5e1' }
-      },
+      plot_bgcolor: 'rgba(11, 17, 32, 0.65)',
+      font: { family: 'Outfit, sans-serif', color: '#cbd5e1' },
+      margin: { l: 55, r: 55, t: 25, b: 40 },
       xaxis: {
-        gridcolor: 'rgba(72, 110, 163, 0.15)',
-        zerolinecolor: 'rgba(72, 110, 163, 0.25)',
-        tickfont: { size: 10 },
-        rangeslider: { visible: showSlider, thickness: 0.08, bgcolor: 'rgba(14, 22, 42, 0.5)' }
+        color: '#94a3b8',
+        gridcolor: 'rgba(255, 255, 255, 0.06)'
       },
       yaxis: {
-        title: { text: 'Latitud (°S)', font: { size: 11, color: '#f1f5f9' } },
-        gridcolor: 'rgba(72, 110, 163, 0.15)',
-        zeroline: false,
-        tickfont: { size: 10 }
+        title: 'Latitud (°S)',
+        color: '#fbbf24',
+        gridcolor: 'rgba(255, 255, 255, 0.06)',
+        autorange: 'reversed'
       },
       yaxis2: {
-        title: { text: 'Longitud (°W)', font: { size: 11, color: '#00d2ff' } },
+        title: 'Longitud (°W)',
+        color: '#38bdf8',
         overlaying: 'y',
         side: 'right',
-        showgrid: false,
-        zeroline: false,
-        tickfont: { size: 10 }
+        gridcolor: 'transparent',
+        autorange: 'reversed'
       },
-      hovermode: 'x unified'
+      legend: {
+        orientation: 'h',
+        x: 0.0,
+        y: 1.15,
+        font: { size: 10 }
+      }
     };
 
-    const config = { responsive: true, displayModeBar: false };
-    Plotly.react('positionChart', traces, layout, config);
+    Plotly.react('positionChart', traces, layout, { responsive: true, displayModeBar: false });
   }
 
+  /**
+   * 3. Serie Temporal: Intensidad Central P_max (hPa) y Espesor Efectivo H_eff
+   */
   renderPressureChart() {
+    const el = document.getElementById('pressureChart');
+    if (!el) return;
+
     const selectedIds = this.modelSelector.getSelectedModelIds();
     const traces = [];
 
@@ -253,73 +415,182 @@ class DashboardCharts {
       if (!selectedIds.includes(model.id)) continue;
 
       const color = this.modelSelector.getModelColor(model.id);
-      const pData = this.filterDataByRange(model.dates, model.pressure_psa);
-      const useSpline = pData.values.length <= 365;
+      const pVals = model.p_max_fit || model.pressure_psa;
+      const hVals = model.h_eff || [];
 
+      const pData = this.filterDataByRange(model.dates, pVals);
       traces.push({
         x: pData.dates,
         y: pData.values,
         mode: 'lines',
-        name: model.name,
-        line: { color: color, width: 2.2, shape: useSpline ? 'spline' : 'linear' },
-        hovertemplate: '<b>%{x}</b><br>PSA: %{y:.1f} hPa<extra></extra>'
+        name: `${model.name} (P_max)`,
+        line: { color: color, width: 2.2 },
+        hovertemplate: '<b>%{x}</b><br>P_max: %{y:.2f} hPa<extra></extra>',
+        yaxis: 'y1'
       });
+
+      if (hVals.length > 0) {
+        const hData = this.filterDataByRange(model.dates, hVals);
+        traces.push({
+          x: hData.dates,
+          y: hData.values,
+          mode: 'lines',
+          name: `${model.name} (Espesor H̄)`,
+          line: { color: color, width: 1.2, dash: 'dot' },
+          hovertemplate: '<b>%{x}</b><br>Espesor H̄: %{y:.2f} hPa<extra></extra>',
+          yaxis: 'y2'
+        });
+      }
     }
 
-    const showSlider = this.currentRange === 'all' || this.currentRange === '1825';
-
-    // Layout con leyenda ubicada en el borde inferior (Solución Bug de Achatamiento)
     const layout = {
+      title: false,
       paper_bgcolor: 'transparent',
-      plot_bgcolor: 'rgba(9, 15, 30, 0.6)',
-      font: { family: 'Outfit, sans-serif', color: '#94a3b8' },
-      margin: { l: 55, r: 25, t: 25, b: showSlider ? 95 : 65 },
-      showlegend: true,
-      legend: {
-        orientation: 'h',
-        yanchor: 'top',
-        y: showSlider ? -0.32 : -0.22,
-        xanchor: 'center',
-        x: 0.5,
-        font: { size: 10, color: '#cbd5e1' }
-      },
+      plot_bgcolor: 'rgba(11, 17, 32, 0.65)',
+      font: { family: 'Outfit, sans-serif', color: '#cbd5e1' },
+      margin: { l: 55, r: 55, t: 25, b: 40 },
       xaxis: {
-        gridcolor: 'rgba(72, 110, 163, 0.15)',
-        zerolinecolor: 'rgba(72, 110, 163, 0.25)',
-        tickfont: { size: 10 },
-        rangeslider: { visible: showSlider, thickness: 0.08, bgcolor: 'rgba(14, 22, 42, 0.5)' }
+        color: '#94a3b8',
+        gridcolor: 'rgba(255, 255, 255, 0.06)'
       },
       yaxis: {
-        title: { text: 'Presión Central PSA (hPa)', font: { size: 11, color: '#f1f5f9' } },
-        gridcolor: 'rgba(72, 110, 163, 0.15)',
-        zeroline: false,
-        tickfont: { size: 10 }
+        title: 'Presión Máxima (hPa)',
+        color: '#f59e0b',
+        gridcolor: 'rgba(255, 255, 255, 0.06)'
       },
-      hovermode: 'x unified'
+      yaxis2: {
+        title: 'Espesor Efectivo H̄ (hPa)',
+        color: '#34d399',
+        overlaying: 'y',
+        side: 'right',
+        gridcolor: 'transparent'
+      },
+      legend: {
+        orientation: 'h',
+        x: 0.0,
+        y: 1.15,
+        font: { size: 10 }
+      }
     };
 
-    const config = { responsive: true, displayModeBar: false };
-    Plotly.react('pressureChart', traces, layout, config);
+    Plotly.react('pressureChart', traces, layout, { responsive: true, displayModeBar: false });
+  }
+
+  /**
+   * 4. Serie Temporal: Extensión Areal A_1020 y Masa Integrada I_vol
+   */
+  renderMorphologyChart() {
+    const el = document.getElementById('morphologyChart');
+    if (!el) return;
+
+    const era5 = this.models['ERA5 Reanálisis'] || Object.values(this.models)[0];
+    if (!era5 || !era5.area_1020) return;
+
+    const aData = this.filterDataByRange(era5.dates, era5.area_1020);
+    const vData = this.filterDataByRange(era5.dates, era5.vol_integral);
+
+    const traces = [
+      {
+        x: aData.dates,
+        y: aData.values,
+        mode: 'lines',
+        name: 'Área A₁₀₂₀ (10⁶ km²)',
+        line: { color: '#38bdf8', width: 2.2 },
+        fill: 'tozeroy',
+        fillcolor: 'rgba(56, 189, 248, 0.1)',
+        hovertemplate: '<b>%{x}</b><br>Área A₁₀₂₀: %{y:.2f} M km²<extra></extra>',
+        yaxis: 'y1'
+      },
+      {
+        x: vData.dates,
+        y: vData.values,
+        mode: 'lines',
+        name: 'Masa/Volumen I_vol (hPa·10⁶ km²)',
+        line: { color: '#a855f7', width: 2.0, dash: 'dash' },
+        hovertemplate: '<b>%{x}</b><br>Masa I_vol: %{y:.1f} hPa·M km²<extra></extra>',
+        yaxis: 'y2'
+      }
+    ];
+
+    const layout = {
+      title: false,
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'rgba(11, 17, 32, 0.65)',
+      font: { family: 'Outfit, sans-serif', color: '#cbd5e1' },
+      margin: { l: 55, r: 55, t: 25, b: 40 },
+      xaxis: { color: '#94a3b8', gridcolor: 'rgba(255, 255, 255, 0.06)' },
+      yaxis: { title: 'Área A₁₀₂₀ (10⁶ km²)', color: '#38bdf8', gridcolor: 'rgba(255, 255, 255, 0.06)' },
+      yaxis2: { title: 'Masa I_vol (hPa·10⁶ km²)', color: '#a855f7', overlaying: 'y', side: 'right', gridcolor: 'transparent' },
+      legend: { orientation: 'h', x: 0.0, y: 1.15, font: { size: 10 } }
+    };
+
+    Plotly.react('morphologyChart', traces, layout, { responsive: true, displayModeBar: false });
+  }
+
+  /**
+   * 5. Serie Temporal: Desacople D_nc (km) y Presión en Caja Norpatagonia (hPa)
+   */
+  renderDecouplingChart() {
+    const el = document.getElementById('decouplingChart');
+    if (!el) return;
+
+    const era5 = this.models['ERA5 Reanálisis'] || Object.values(this.models)[0];
+    if (!era5 || !era5.dist_decoupling_km) return;
+
+    const dData = this.filterDataByRange(era5.dates, era5.dist_decoupling_km);
+    const pPatData = this.filterDataByRange(era5.dates, era5.p_patagonia);
+
+    const traces = [
+      {
+        x: dData.dates,
+        y: dData.values,
+        mode: 'lines',
+        name: 'Desacople D_nc (km)',
+        line: { color: '#f43f5e', width: 2.0 },
+        hovertemplate: '<b>%{x}</b><br>Desacople D_nc: %{y:.1f} km<extra></extra>',
+        yaxis: 'y1'
+      },
+      {
+        x: pPatData.dates,
+        y: pPatData.values,
+        mode: 'lines',
+        name: 'Presión Norpatagonia (hPa)',
+        line: { color: '#c084fc', width: 1.8, dash: 'dot' },
+        hovertemplate: '<b>%{x}</b><br>Presión Norpatagonia: %{y:.2f} hPa<extra></extra>',
+        yaxis: 'y2'
+      }
+    ];
+
+    const layout = {
+      title: false,
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'rgba(11, 17, 32, 0.65)',
+      font: { family: 'Outfit, sans-serif', color: '#cbd5e1' },
+      margin: { l: 55, r: 55, t: 25, b: 40 },
+      xaxis: { color: '#94a3b8', gridcolor: 'rgba(255, 255, 255, 0.06)' },
+      yaxis: { title: 'Desacople D_nc (km)', color: '#f43f5e', gridcolor: 'rgba(255, 255, 255, 0.06)' },
+      yaxis2: { title: 'Presión Norpatagonia (hPa)', color: '#c084fc', overlaying: 'y', side: 'right', gridcolor: 'transparent' },
+      legend: { orientation: 'h', x: 0.0, y: 1.15, font: { size: 10 } }
+    };
+
+    Plotly.react('decouplingChart', traces, layout, { responsive: true, displayModeBar: false });
   }
 
   attachClickEvents() {
-    const bindPlotClick = (elementId) => {
-      const el = document.getElementById(elementId);
-      if (el && !el._hasClickBound) {
-        el._hasClickBound = true;
+    ['positionChart', 'pressureChart', 'phaseSpaceChart', 'morphologyChart', 'decouplingChart'].forEach(chartId => {
+      const el = document.getElementById(chartId);
+      if (el) {
         el.on('plotly_click', (data) => {
           if (data && data.points && data.points.length > 0) {
-            const clickedDate = data.points[0].x;
-            if (this.onDateSelected && clickedDate) {
+            const pt = data.points[0];
+            const clickedDate = pt.x;
+            if (clickedDate && typeof clickedDate === 'string' && clickedDate.includes('-') && this.onDateSelected) {
               this.onDateSelected(clickedDate);
             }
           }
         });
       }
-    };
-
-    bindPlotClick('positionChart');
-    bindPlotClick('pressureChart');
+    });
   }
 
   showScientificToast(message) {
@@ -327,15 +598,28 @@ class DashboardCharts {
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'scientificToast';
-      toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0b1329;border:1px solid #00d2ff;color:#f8fafc;padding:12px 20px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.85);z-index:9999;font-size:0.875rem;max-width:380px;line-height:1.45;transition:all 0.3s ease;pointer-events:none;opacity:0;transform:translateY(12px);';
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(2, 132, 199, 0.4);
+        color: #f1f5f9;
+        padding: 12px 18px;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        font-family: Outfit, sans-serif;
+        font-size: 13px;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      `;
       document.body.appendChild(toast);
     }
-    toast.innerHTML = `📡 <strong>Aviso del Observatorio:</strong><br>${message}`;
+    toast.innerHTML = message;
     toast.style.opacity = '1';
-    toast.style.transform = 'translateY(0)';
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(12px)';
+    clearTimeout(this._toastTimeout);
+    this._toastTimeout = setTimeout(() => {
+      if (toast) toast.style.opacity = '0';
     }, 4500);
   }
 }

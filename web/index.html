@@ -133,50 +133,61 @@
     </div>
   </div>
 
-  <!-- Banner de Estado y 4 Recuadros de Indicadores (KPIs) -->
+  <!-- Banner de Estado y 5 Recuadros de Indicadores Físicos (KPIs V5.3) -->
   <section class="metrics-summary">
-    <!-- KPI 1: Presión Central -->
+    <!-- KPI 1: Presión Central Submalla -->
     <div class="metric-card">
       <div class="metric-header">
-        <span class="metric-label">Presión Máxima (PSA)</span>
+        <span class="metric-label">Presión Central (P<sub>max</sub>)</span>
         <button class="kpi-info-trigger" data-modal="modalPressure"
-          title="Ver explicación física del gradiente barométrico y viento geostrófico">ℹ️</button>
+          title="Ver cálculo de submalla 2D y condición de cima cerrada">ℹ️</button>
       </div>
       <div class="metric-value" id="kpiPressure">-- <small>hPa</small></div>
-      <span class="metric-sub" id="kpiModelFocus">Centro del anticiclón</span>
+      <span class="metric-sub" id="kpiAnomaly">Anomalía WMO: -- hPa</span>
     </div>
 
-    <!-- KPI 2: Posición del Centro -->
+    <!-- KPI 2: Posición del Par Dinámico -->
     <div class="metric-card">
       <div class="metric-header">
-        <span class="metric-label">Posición del Centro Bárico</span>
+        <span class="metric-label">Par Dinámico (Núcleo / Centroide)</span>
         <button class="kpi-info-trigger" data-modal="modalPosition"
-          title="Ver dinámica de migración estacional y celda de Hadley">ℹ️</button>
+          title="Ver cinemática del núcleo submalla (+) y centroide de masa (◇)">ℹ️</button>
       </div>
-      <div class="metric-value" id="kpiPosition">--°S, --°W</div>
-      <span class="metric-sub" id="kpiPositionSub">Océano Pacífico Suroriental</span>
+      <div class="metric-value" id="kpiPosition" style="font-size: 1.05rem;">Núcleo: --°S, --°W</div>
+      <span class="metric-sub" id="kpiCentroid">Centroide (◇): --°S, --°W</span>
     </div>
 
-    <!-- KPI 3: Anomalía de Presión -->
+    <!-- KPI 3: Extensión y Volumen del Domo -->
     <div class="metric-card">
       <div class="metric-header">
-        <span class="metric-label">Anomalía Superficial</span>
-        <button class="kpi-info-trigger" data-modal="modalAnomaly"
-          title="Ver física de anomalías climáticas, bloqueos y ondas de calor marinas">ℹ️</button>
+        <span class="metric-label">Extensión y Masa (A<sub>1020</sub> / I<sub>vol</sub>)</span>
+        <button class="kpi-info-trigger" data-modal="modalMorphology"
+          title="Ver área superficial y contenido barométrico integrado">ℹ️</button>
       </div>
-      <div class="metric-value" id="kpiAnomaly">-- <small>hPa</small></div>
-      <span class="metric-sub" id="kpiAnomalySub">Respecto a climatología histórica del día</span>
+      <div class="metric-value" id="kpiArea">-- <small>M km²</small></div>
+      <span class="metric-sub" id="kpiVolume">Volumen: -- hPa·M km²</span>
     </div>
 
-    <!-- KPI 4: Fecha Activa y Cobertura -->
+    <!-- KPI 4: Desacople Morfológico y Régimen -->
     <div class="metric-card">
       <div class="metric-header">
-        <span class="metric-label">Fecha Activa / Registro</span>
-        <button class="kpi-info-trigger" data-modal="modalCoverage"
-          title="Ver detalles de cobertura temporal y control de calidad">ℹ️</button>
+        <span class="metric-label">Desacople Morfológico (D<sub>nc</sub>)</span>
+        <button class="kpi-info-trigger" data-modal="modalDecoupling"
+          title="Ver vector geodésico y diagnóstico de cuñas o bloqueos">ℹ️</button>
       </div>
-      <div class="metric-value" id="kpiDate" style="font-family: var(--font-mono);">--</div>
-      <span class="metric-sub" id="kpiDateSub">Registro multidecadal LOFA</span>
+      <div class="metric-value" id="kpiDecoupling">-- km</div>
+      <span class="metric-sub" id="kpiDecouplingBadge"><span class="badge-regime-symmetric">Simétrico Concéntrico</span></span>
+    </div>
+
+    <!-- KPI 5: Monitoreo Norpatagonia -->
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">Caja Norpatagonia</span>
+        <button class="kpi-info-trigger" data-modal="modalPatagonia"
+          title="Ver monitoreo de bloqueos y cuñas en fiordos australes">ℹ️</button>
+      </div>
+      <div class="metric-value" id="kpiPatagonia">-- <small>hPa</small></div>
+      <span class="metric-sub" id="kpiPatagoniaSub">Sinóptica Normal</span>
     </div>
   </section>
 
@@ -188,18 +199,11 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">Mapa de Presión Atmosférica (PA) e Isobaras Sinópticas</h2>
-            <p class="card-desc">Campo barométrico 2D, curvas de nivel (Marching Squares 1012–1028 hPa) y vectores de
-              viento</p>
+            <p class="card-desc">Par dinámico: Núcleo (+) y Centroide (◇), Marching Squares 2D e Isóbara Crítica 1020 hPa</p>
           </div>
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <button id="toggleUpwellingLayerBtn" class="btn-toggle-layer active"
-              title="Alternar visualización de vectores de viento costero">
-              ↗️ Vectores Viento
-            </button>
-            <button id="openUpwellingModalBtn" class="btn-toggle-layer"
-              title="Ver tabla de dinámica oceanográfica de surgencia costera (Índice de Bakun UI) y transporte de Ekman">
-              🌊 Datos Surgencia (UI)
-            </button>
+            <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 0.75rem;">⭐ Isóbara 1020 hPa Destacada</span>
+            <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-size: 0.75rem;">🔲 Caja Norpatagonia</span>
           </div>
         </div>
         <div class="card-body">
@@ -257,40 +261,71 @@
     </div>
   </section>
 
-  <!-- Fila de Series de Tiempo Científicas (Plotly.js) -->
+  <!-- Fila de Diagnóstico Espacial y Series Temporales Científicas (Plotly.js V5.3) -->
   <section class="charts-section">
+    <!-- Fila 1: Diagrama de Fase Espacial 2D (Centroide y Núcleo en λ vs φ) -->
+    <div class="grid-card chart-card" style="margin-bottom: 1.25rem;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Diagrama de Fase Espacial 2D: Longitud vs. Latitud (LOFA - UACh)</h2>
+          <p class="card-desc">Trayectoria continua del Núcleo (+) y Centroide (◇) en el espacio de fase con cuadrantes sinópticos</p>
+        </div>
+        <div class="chart-controls-wrapper">
+          <!-- Selector de Presets Climáticos Científicos -->
+          <select id="climatePresetsSelect" class="preset-select"
+            title="Cargar eventos climáticos históricos documentados">
+            <option value="">⚡ Presets Climáticos Documentados...</option>
+            <option value="1997-04-01:1998-06-30">🌊 El Niño Canónico Extraordinario (1997–1998)</option>
+            <option value="1994-01-01:1995-12-31">❄️ Transición ENSO Neutra / Normal (1994–1995)</option>
+            <option value="1999-01-01:2000-12-31">❄️ La Niña Fuerte Post-Niño (1999–2000)</option>
+            <option value="2002-05-01:2003-04-30">⚡ El Niño Moderado del Pacífico (2002–2003)</option>
+            <option value="forecast">📡 Pronóstico Operativo NOAA GFS (+7 días)</option>
+            <option value="2015-05-01:2016-06-30" data-status="pending">⏳ El Niño Godzilla (2015–2016) [En descarga]</option>
+            <option value="2024-01-01:2024-03-31" data-status="pending">⏳ Verano Récord 2024 [En descarga]</option>
+          </select>
+
+          <!-- Chips de Intervalo Rápido Sincronizados -->
+          <div class="chart-controls">
+            <button class="btn-chip" data-range="30">30d</button>
+            <button class="btn-chip" data-range="90">90d</button>
+            <button class="btn-chip active" data-range="365">1 año</button>
+            <button class="btn-chip" data-range="1825">5 años</button>
+            <button class="btn-chip" data-range="all">Histórico</button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="phaseSpaceChart" class="chart-container" style="min-height: 440px;"></div>
+      </div>
+    </div>
+
+    <!-- Fila 2: Series de Tiempo en 2 Columnas -->
     <div class="charts-grid">
-      <!-- Gráfico 1: Posición del Centro (Latitud y Longitud) -->
+      <!-- Gráfico 2: Intensidad Presión Superficial (P_max) y Espesor Efectivo -->
       <div class="grid-card chart-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Serie de Tiempo: Posición del Centro (Latitud y Longitud)</h2>
-            <p class="card-desc">Migración estacional y decadal del núcleo marino del APS (Latitud °S y Longitud °W)</p>
+            <h2 class="card-title">Intensidad Central (P<sub>max</sub>) y Espesor Efectivo (H̄)</h2>
+            <p class="card-desc">Presión barométrica continua en el núcleo (hPa) y espesor medio del domo</p>
           </div>
-          <div class="chart-controls-wrapper">
-            <!-- Selector de Presets Climáticos Científicos -->
-            <select id="climatePresetsSelect" class="preset-select"
-              title="Cargar eventos climáticos históricos documentados">
-              <option value="">⚡ Presets Climáticos Documentados...</option>
-              <option value="1940-01-01:1941-12-31">🏜️ Gran Sequía de la Zona Central (1940–1941)</option>
-              <option value="1950-01-01:1951-12-31">❄️ La Niña Fuerte Multianual (1950–1951)</option>
-              <option value="1957-01-01:1958-12-31">⚡ El Niño Clásico / Año Geofísico (1957–1958)</option>
-              <option value="1965-01-01:1966-12-31">🌊 El Niño Intenso de Valparaíso (1965–1966)</option>
-              <option value="1972-01-01:1972-12-31">⚡ El Niño Histórico del Siglo XX (1972)</option>
-              <option value="forecast">📡 Pronóstico Operativo NOAA GFS (+7 días)</option>
-              <option value="1997-04-01:1998-06-30" data-status="pending">⏳ El Niño Canónico (1997–1998) [En descarga]</option>
-              <option value="2015-05-01:2016-06-30" data-status="pending">⏳ El Niño Godzilla (2015–2016) [En descarga]</option>
-              <option value="2024-01-01:2024-03-31" data-status="pending">⏳ Verano Récord 2024 [En descarga]</option>
-            </select>
+          <div class="custom-range-inputs">
+            <input type="date" id="chartDateFrom" class="chart-date-input" title="Fecha inicio">
+            <span class="range-sep">a</span>
+            <input type="date" id="chartDateTo" class="chart-date-input" title="Fecha fin">
+            <button id="applyCustomDateRangeBtn" class="btn-chip btn-chip-apply" title="Aplicar rango de fechas">Filtrar</button>
+          </div>
+        </div>
+        <div class="card-body chart-body-fixed">
+          <div id="pressureChart" class="chart-container"></div>
+        </div>
+      </div>
 
-            <!-- Chips de Intervalo Rápido -->
-            <div class="chart-controls">
-              <button class="btn-chip" data-range="30">30d</button>
-              <button class="btn-chip" data-range="90">90d</button>
-              <button class="btn-chip active" data-range="365">1 año</button>
-              <button class="btn-chip" data-range="1825">5 años</button>
-              <button class="btn-chip" data-range="all">Histórico</button>
-            </div>
+      <!-- Gráfico 3: Posición del Centro (Latitud y Longitud) -->
+      <div class="grid-card chart-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Cinemática del Par Dinámico (Latitud y Longitud)</h2>
+            <p class="card-desc">Evolución de Latitud (°S) y Longitud (°W) para el Núcleo (+) y Centroide (◇)</p>
           </div>
         </div>
         <div class="card-body chart-body-fixed">
@@ -298,35 +333,29 @@
         </div>
       </div>
 
-      <!-- Gráfico 2: Intensidad Presión Superficial (PSA) -->
+      <!-- Gráfico 4: Morfología y Masa (A_1020 e I_vol) -->
       <div class="grid-card chart-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Serie de Tiempo: Intensidad Presión Superficial (PSA)</h2>
-            <p class="card-desc">Presión barométrica en el centro del anticiclón (hPa) y dispersión inter-modelo</p>
-          </div>
-          <div class="chart-controls-wrapper">
-            <!-- Filtro de Rango Personalizado -->
-            <div class="custom-range-inputs">
-              <input type="date" id="chartDateFrom" class="chart-date-input" title="Fecha inicio">
-              <span class="range-sep">a</span>
-              <input type="date" id="chartDateTo" class="chart-date-input" title="Fecha fin">
-              <button id="applyCustomDateRangeBtn" class="btn-chip btn-chip-apply"
-                title="Aplicar rango de fechas">Filtrar</button>
-            </div>
-
-            <!-- Chips de Intervalo Rápido Sincronizados -->
-            <div class="chart-controls">
-              <button class="btn-chip" data-range="30">30d</button>
-              <button class="btn-chip" data-range="90">90d</button>
-              <button class="btn-chip active" data-range="365">1 año</button>
-              <button class="btn-chip" data-range="1825">5 años</button>
-              <button class="btn-chip" data-range="all">Histórico</button>
-            </div>
+            <h2 class="card-title">Extensión Areal (A<sub>1020</sub>) y Masa Integrada (I<sub>vol</sub>)</h2>
+            <p class="card-desc">Superficie marina con P ≥ 1020 hPa e integral de sobrepresión en la columna</p>
           </div>
         </div>
         <div class="card-body chart-body-fixed">
-          <div id="pressureChart" class="chart-container"></div>
+          <div id="morphologyChart" class="chart-container"></div>
+        </div>
+      </div>
+
+      <!-- Gráfico 5: Diagnóstico de Desacople y Bloqueos -->
+      <div class="grid-card chart-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Desacople Morfológico (D<sub>nc</sub>) y Presión Norpatagonia</h2>
+            <p class="card-desc">Distancia ortodrómica núcleo–centroide (km) y barometría en canales australes</p>
+          </div>
+        </div>
+        <div class="card-body chart-body-fixed">
+          <div id="decouplingChart" class="chart-container"></div>
         </div>
       </div>
     </div>
@@ -560,14 +589,17 @@
           </p>
         </div>
 
-        <h3>5. Surgencia Costera y Formulación de Bakun (1973)</h3>
-        <p>El gradiente zonal de presión perpendicular a la costa genera viento geostrófico superficial y transporte mar afuera de la capa de Ekman (\(M_{Ex}\)):</p>
+        <h3>5. Par Dinámico, Morfología y Masa Barométrica (Metodología Dr. José Garcés Vargas)</h3>
+        <p>Para erradicar la discretización espacial de 0.25° y el error de saltos espurios, el APS se define mediante el par cinemático acoplado:</p>
         <div class="math-box">
           <div class="math-formula">
-            $$\tau_y = \rho_a C_d |\vec{V}_{10}| v_{10}, \qquad UI = \frac{\tau_y}{\rho_w |f|} \times 1000 \quad \left[\frac{\text{m}^3}{\text{s} \cdot \text{km de costa}}\right]$$
+            $$\nabla P(x, y) = \begin{pmatrix} 2a x + c y + d \\ 2b y + c x + e \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix}, \quad \det(H) = 4ab - c^2 > 0$$
+          </div>
+          <div class="math-formula" style="margin-top: 0.5rem; color: #fbbf24;">
+            $$A_{1020} = \frac{1}{10^6} \sum_{\text{mar}, P \ge 1020} dA(\phi) \quad [10^6\text{ km}^2], \quad I_{\text{vol}} = \frac{1}{10^6} \sum_{\text{mar}} \max(P - 1020, 0) \cdot dA(\phi)$$
           </div>
           <p class="math-explanation">
-            Un índice \(UI &gt; 300\text{ m}^3/(\text{s}\cdot\text{km})\) indica surgencia activa y ascenso de Aguas Ecuatoriales Subsuperficiales (AESS) ricas en nutrientes hacia la zona fótica.
+            El <strong>Núcleo Continuo (+)</strong> resuelve el vértice submalla (\(P_{\max}\)) validando curvatura negativa en el Hessiano. El <strong>Centroide Adaptativo (◇)</strong> computa el baricentro con umbral flotante (\(P_{\text{ref}} = P_{\max} - 4.0\text{ hPa}\) en mayo), resolviendo la desaparición estacional de la isóbara de 1020 hPa. La distancia de desacople \(D_{nc}\) y el acimut náutico \(\theta\) diagnostican cuñas costeras y bloqueos hacia la Patagonia.
           </p>
         </div>
 
@@ -696,81 +728,79 @@
     </div>
   </div>
 
-  <!-- Modal 8: Dinámica Oceanográfica de Surgencia Costera (Índice de Bakun UI) -->
-  <div id="upwellingModalOverlay" class="science-modal-overlay">
-    <div class="science-modal-container" style="max-width: 900px;">
+  <!-- Modal 8: Morfología, Par Dinámico y Desacople Núcleo–Centroide (LOFA - UACh) -->
+  <div id="modalMorphologyOverlay" class="science-modal-overlay">
+    <div class="science-modal-container" style="max-width: 850px;">
       <div class="science-modal-header">
-        <h2 class="science-modal-title"><span>🌊</span> Dinámica de Surgencia Costera (Índice de Bakun UI) y Transporte
-          de Ekman</h2>
-        <button class="modal-close-btn" data-close="upwellingModalOverlay" aria-label="Cerrar modal">✕</button>
+        <h2 class="science-modal-title"><span>📐</span> Morfología y Masa del Anticiclón (A<sub>1020</sub> e I<sub>vol</sub>)</h2>
+        <button class="modal-close-btn" data-close="modalMorphologyOverlay" aria-label="Cerrar modal">✕</button>
       </div>
-
       <div class="science-modal-body">
         <p style="margin-bottom: 1rem; color: #cbd5e1;">
-          El <strong>Anticiclón del Pacífico Sur (APS)</strong> comanda el gradiente barométrico entre el Pacífico
-          Suroriental y las bajas térmicas sobre el cono sudamericano. Debido a la aceleración de Coriolis en el
-          Hemisferio Sur (\(f &lt; 0\)), este gradiente genera vientos paralelos a la costa de Chile con componente
-          hacia el norte (\(v &gt; 0\)), los cuales impulsan el <strong>transporte mar afuera de la capa superficial de
-            Ekman</strong> (\(M_{Ex}\)) provocando la surgencia (<em>upwelling</em>) de aguas subsuperficiales frías,
-          salinas y ricas en nutrientes (Aguas Ecuatoriales Subsuperficiales - AESS).
+          La intensidad escalar de presión (\(P_{\max}\)) es insuficiente para describir el impacto climático del APS. Siguiendo la metodología desarrollada en el LOFA-UACh por el <strong>Dr. José Garcés Vargas</strong>, se calculan variables de estado dimensional y energético sobre la columna marina:
         </p>
 
         <div class="math-box">
           <div class="math-formula">
-            $$v_g = \frac{1}{\rho_a f} \frac{\partial P}{\partial x}, \quad \tau_y = \rho_a C_d |\vec{V}_{10}| v_{10}$$
+            $$A_{1020} = \frac{1}{10^6} \sum_{\text{mar}, P \ge 1020} dA(\phi) \quad \left[10^6\text{ km}^2\right]$$
           </div>
-          <div class="math-formula" style="margin-top: 0.5rem; color: var(--color-gold);">
-            $$UI = \frac{\tau_y}{\rho_w |f|} \times 1000 \quad \left[\frac{\text{m}^3}{\text{s} \cdot \text{km de
-            costa}}\right], \quad M_{Ex} = \frac{\tau_y}{\rho_w |f|}$$
+          <div class="math-formula" style="margin-top: 0.5rem; color: #fbbf24;">
+            $$I_{\text{vol}} = \frac{1}{10^6} \sum_{\text{mar}} \max(P - 1020.0, \, 0.0) \cdot dA(\phi) \quad \left[\text{hPa} \cdot 10^6\text{ km}^2\right]$$
+          </div>
+          <div class="math-formula" style="margin-top: 0.5rem; color: #34d399;">
+            $$\bar{H}_{\text{eff}} = \frac{I_{\text{vol}}}{A_{1020}} \quad [\text{hPa}]$$
           </div>
           <p class="math-explanation">
-            Donde \(\rho_a \approx 1.225\text{ kg/m}^3\), \(\rho_w \approx 1025\text{ kg/m}^3\), \(C_d \approx 1.3
-            \times 10^{-3}\) (coeficiente de arrastre aerodinámico) y \(f = 2\Omega\sin\phi &lt; 0\) es el parámetro de
-            Coriolis (\(\Omega = 7.2921 \times 10^{-5}\text{ rad/s}\)). Un índice \(UI &gt; 0\) indica surgencia neta
-            favorable; \(UI &gt; 500\) representa eventos intensos comandados por el Chorro Costero de Bajo Nivel
-            (CLLJ); valores negativos (\(UI &lt; 0\)) corresponden a hundimiento o relajación costera
-            (<em>downwelling</em>).
+            Donde \(dA(\phi) = R_{\oplus}^2 \cos\phi \Delta\phi \Delta\lambda\) es el elemento diferencial esférico. El área \(A_{1020}\) presenta un mínimo marcado en mayo (\(&lt; 1.0\times 10^6\text{ km}^2\)) y un máximo en primavera austral (\(&gt; 7.5\times 10^6\text{ km}^2\)).
           </p>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <h3 style="color: #f1f5f9; font-size: 1.05rem; margin: 1.25rem 0 0.5rem;">📍 Monitoreo Operativo en 5 Puntos
-          Estratégicos de Chile</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">
-          Valores calculados dinámicamente a partir del gradiente barométrico zonal en la fecha activa del observatorio:
+  <!-- Modal 9: Vector Geodésico de Desacople y Regímenes Sinópticos -->
+  <div id="modalDecouplingOverlay" class="science-modal-overlay">
+    <div class="science-modal-container" style="max-width: 850px;">
+      <div class="science-modal-header">
+        <h2 class="science-modal-title"><span>🧭</span> Vector de Desacople Morfológico (D<sub>nc</sub> y Rumbo θ)</h2>
+        <button class="modal-close-btn" data-close="modalDecouplingOverlay" aria-label="Cerrar modal">✕</button>
+      </div>
+      <div class="science-modal-body">
+        <p style="margin-bottom: 1rem; color: #cbd5e1;">
+          Cuando ondas planetarias de Rossby deforman el domo barométrico, el centro de gravedad (\(\diamond\)) se disocia del vértice de máxima presión (\(+\)). El vector de desacople diagnostica objetivamente el régimen sinóptico:
         </p>
-
-        <div
-          style="overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 0.5rem;">
-          <table class="upwelling-modal-table" id="upwellingModalStationsTable">
-            <thead>
-              <tr>
-                <th>Estación / Puerto</th>
-                <th>Región</th>
-                <th>Latitud</th>
-                <th>Gradiente \(\partial P/\partial x\)</th>
-                <th>Viento \(V_{10}\)</th>
-                <th>Esfuerzo \(\tau_y\)</th>
-                <th>Índice Bakun (UI)</th>
-                <th>Estado Oceanográfico</th>
-              </tr>
-            </thead>
-            <tbody id="upwellingModalTableBody">
-              <!-- Renderizado dinámicamente con JavaScript -->
-            </tbody>
-          </table>
+        <div class="math-box">
+          <div class="math-formula">
+            $$D_{nc} = 2 R_{\oplus} \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos\phi_{\max}\cos\phi_c \sin^2\left(\frac{\Delta\lambda}{2}\right)}\right) \quad [\text{km}]$$
+          </div>
+          <p class="math-explanation">
+            • <strong>D<sub>nc</sub> &lt; 200 km:</strong> Régimen Concéntrico Simétrico (típico de verano austral).<br>
+            • <strong>D<sub>nc</sub> ≥ 200 km con θ ∈ [45°, 135°]:</strong> Cuña Costera / Compresión hacia Chile Central.<br>
+            • <strong>D<sub>nc</sub> ≥ 200 km con θ ∈ [135°, 225°]:</strong> Bloqueo Patagónico Austral (Rex Blocking).
+          </p>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <div class="skill-cards-grid" style="margin-top: 1.25rem;">
-          <div class="skill-card">
-            <h4>🐟 Productividad Primaria y AESS</h4>
-            <p>La surgencia transporta aguas de 10° a 13°C con alto contenido de nitrato (&gt;25 µM) y fosfato a la zona
-              fótica, sustentando la mayor pesquería pelágica del planeta (anchoveta y sardina).</p>
+  <!-- Modal 10: Monitoreo en Caja Norpatagonia -->
+  <div id="modalPatagoniaOverlay" class="science-modal-overlay">
+    <div class="science-modal-container" style="max-width: 800px;">
+      <div class="science-modal-header">
+        <h2 class="science-modal-title"><span>🏔️</span> Monitoreo Barométrico en Caja Norpatagonia</h2>
+        <button class="modal-close-btn" data-close="modalPatagoniaOverlay" aria-label="Cerrar modal">✕</button>
+      </div>
+      <div class="science-modal-body">
+        <p style="margin-bottom: 1rem; color: #cbd5e1;">
+          La Caja Norpatagonia \([-45.0^\circ\text{S}, -41.0^\circ\text{S}] \times [-78.0^\circ\text{W}, -72.0^\circ\text{W}]\) cubre la entrada al Golfo de Penas, Chiloé y los fiordos patagónicos.
+        </p>
+        <div class="math-box">
+          <div class="math-formula">
+            $$P_{\text{patagonia}} = \frac{\sum_{\text{box}} P(\phi, \lambda) \cos\phi}{\sum_{\text{box}} \cos\phi} \quad [\text{hPa}]$$
           </div>
-          <div class="skill-card">
-            <h4>🧭 Migración Estacional del Chorro</h4>
-            <p>En invierno el APS migra al norte (~27°S), confinando la surgencia a Arica y Mejillones. En
-              primavera-verano desciende a 35°-38°S, intensificando los vientos favorables en Valparaíso y Arauco.</p>
-          </div>
+          <p class="math-explanation">
+            Presiones medias sostenidas por encima de \(1018.0\text{ hPa}\) en este cuadrante señalan la invasión de una dorsal cálida de bloqueo, forzando estabilidad atmosférica extrema, despeje radiativo y gatillando olas de calor marinas en la Patagonia.
+          </p>
         </div>
       </div>
     </div>

@@ -33,34 +33,28 @@ Este proyecto es una plataforma web científica de **código abierto y acceso p�
 
 ---
 
-## 📊 Módulos del Dashboard
+## 📊 Módulos del Dashboard V5.3
 
-- **  Cartografía Sinóptica e Isobaras Dinámicas:**  
-  Mosaicos cartográficos de alta definición con proyección de coordenadas, detección del centro bárico (marcador sinóptico "A"), isobaras dinámicas (1012 a 1028 hPa) e hitos costeros de referencia (Lima, Arica, Antofagasta, Valparaíso, Concepción, Puerto Montt, Juan Fernández y Rapa Nui).
+- **🗺️ Cartografía Sinóptica e Isobaras Dinámicas (Marching Squares 2D):**  
+  Mosaicos cartográficos de alta definición con visualización del **Par Dinámico**: **Núcleo Continuo Submalla (+)** en dorado y **Centroide de Masa (◇)** en cyan eléctrico, unidos por el vector geodésico de desacople. Trazo destacado de la **Isóbara Crítica de 1020 hPa** y polígono delimitador de la **Caja Norpatagonia** ($[-45^\circ\text{S}, -41^\circ\text{S}] \times [-78^\circ\text{W}, -72^\circ\text{W}]$).
 
-- **  Mapa de Anomalías de Presión Superficial:**  
-  Campo continuo de desviación barométrica con barra cromática calibrada (-4 a +4 hPa) y consulta puntual interactiva.
+- **🌀 Diagrama de Fase Espacial 2D (Longitud vs. Latitud):**  
+  Espacio de fase cinemático interactivo (Plotly.js) que mapea la trayectoria del Núcleo y del Centroide clasificando el estado atmosférico en 4 cuadrantes sinópticos: *Retracción Oceánica*, *Cuña Costera (Chile Central)*, *Bloqueo Patagónico Austral* y *Simetría Estival Típica*.
 
-- **  Series de Tiempo de Posición y Presión Central (Plotly.js):**  
-  Trayectorias multidecadales y recientes con selectores de ventana temporal (30 días, 90 días, 1 año, 5 años e Histórico) y control deslizante interactivo (*rangeslider*).
+- **📈 Series Temporales Multimodelo (Plotly.js):**  
+  5 paneles sincronizados que cubren: 1) Intensidad central $P_{\max}$ y espesor efectivo $\bar{H}$, 2) Cinemática latitudinal y longitudinal del par dinámico, 3) Extensión areal $A_{1020}$ y masa barométrica $I_{\text{vol}}$, 4) Desacople geodésico $D_{nc}$ y presión media en Norpatagonia.
 
-- **  Selector Multimodelo (Drawer Lateral):**  
-  Menú desplegable para activar, desactivar y superponer los 6 modelos y productos científicos disponibles:
-  1. *ERA5 Reanálisis (ECMWF - Europa)*: Verdad observacional de referencia histórica y sinóptica (resolución 0.25° con asimilación 4D-Var de satélites y boyas).
-  2. *NOAA GFS (Pronóstico Operativo 7 Días)*: Modelo numérico sinóptico global de ecuaciones primitivas (NCEP/NOAA, ciclo 00Z).
-  3. *Climatología Histórica LOFA (1940–2024)*: Línea base estacional de 80 años calculada sobre el registro histórico para estimar el ciclo anual medio.
-  4. *Fase El Niño (ENOS Cálido)*: Modelo compuesto empírico basado en años Niño históricos (NOAA CPC / OMM); reproduce el debilitamiento barométrico y la migración al norte/oeste.
-  5. *Fase La Niña (ENOS Frío)*: Modelo compuesto empírico basado en años Niña históricos; reproduce la intensificación barométrica y la migración hacia latitudes polares.
-  6. *NCEP/NCAR Reanalysis (NOAA - EE.UU.)*: Reanálisis atmosférico multidecadal norteamericano para contraste e intercomparación con ERA5.
+- **🎛️ Selector Multimodelo (Drawer Lateral):**  
+  Superposición de productos observacionales y de pronóstico:
+  1. *ERA5 Reanálisis (ECMWF)*: Verdad observacional con asimilación 4D-Var de scatterómetros y altimetría satelital.
+  2. *Climatología Normal OMM (1994–2023)*: Línea base estándar de 30 años de la era satelital moderna.
+  3. *NOAA GFS (Pronóstico Operativo +7 Días)*: Modelo numérico sinóptico global de ecuaciones primitivas (NCEP/NOAA, ciclo 00Z).
 
-- **  Matriz de skill-score y Validación Inter-Modelo (Modal):**  
-  Ventana emergente con distintivos de calidad, métricas estadísticas (RMSE, BIAS, correlación $r$, error espacial y Willmott $d$) e interpretación pedagógica de errores sistemáticos.
-
-- **  Fundamentos Físicos Oceanográficos (Modales Pedagógicos):**  
-  Ventanas explicativas contextuales accesibles mediante botones `ℹ️` en cada tarjeta de indicadores (KPIs), detallando el equilibrio geostrófico, el transporte de Ekman, la surgencia costera y la delimitación oceánica.
+- **🧪 Suite de Validación y Física (`tests/test_aps_physics.py`):**  
+  Pruebas automatizadas de curvatura negativa en el Hessiano ($\det(H) > 10^{-4}$), continuidad del centroide adaptativo en el colapso estacional de mayo ($P_{\max} < 1020\text{ hPa}$), y cero penetración de centros en tierra continental mediante Natural Earth 10m.
 
 - **📥 Descarga de Datos Científicos:**  
-  Exportación directa de la serie temporal consolidada multimodelo en CSV (`aps_multimodel_metrics_lofa.csv`).
+  Exportación directa de la serie temporal consolidada multimodelo en CSV (`aps_multimodel_metrics_lofa.csv`) y JSON estructurado (`latest_aps_data.json`).
 
 ---
 
@@ -69,14 +63,13 @@ Este proyecto es una plataforma web científica de **código abierto y acceso p�
 El proyecto opera bajo una arquitectura desacoplada basada en estándares web abiertos y procesamiento científico automatizado:
 
 1. **Pipeline de Datos (`pipeline/`):**
-   - Scripts en Python con librerías científicas (`xarray`, `netCDF4`, `numpy`, `scipy`, `pandas`, `cfgrib`).
-   - `download_era5.py`: Descarga automatizada de campos diarios de presión desde el *Copernicus Climate Data Store*.
-   - `download_gfs_forecast.py`: Extracción directa de pronósticos operativos a 7 días vía el filtro GRIB de NOAA NOMADS.
-   - `calculate_aps_metrics.py`: Algoritmo de detección del centro bárico confinado a la ventana puramente oceánica ($18^\circ\text{S} - 45^\circ\text{S}$, $120^\circ\text{W} - 75^\circ\text{W}$) para eliminar artefactos numéricos sobre la Cordillera de los Andes.
-2. **Automatización:**
-   - Flujos de trabajo de integración y despliegue continuo que actualizan los datos operativos y publican la plataforma.
-3. **Frontend (`web/`):**
-   - Interfaz web moderna desarrollada en HTML5 semántico, CSS3 modular (tema *Deep Abyss*) y JavaScript Vanilla interactivo con Leaflet.js y Plotly.js, sin dependencias pesadas de frameworks.
+   - Scripts en Python con librerías científicas (`xarray`, `netCDF4`, `numpy`, `scipy`, `pandas`, `shapely`, `pyshp`).
+   - `spatial_geometry.py`: Máscara continental Natural Earth 10m vía Shapely 2.0+ `contains_xy`, elemento diferencial de área esférico $dA(\phi)$, y convolución normalizada marina (supresión del efecto muro).
+   - `calculate_aps_metrics.py`: Ajuste cuadrático 2D submalla (`fit_quadratic_2d`), centroide adaptativo, métricas de masa ($A_{1020}, I_{\text{vol}}, \bar{H}$), desacople geodésico ($D_{nc}, \theta$), caja Norpatagonia y climatología OMM 1994–2023.
+   - `download_era5.py`: Descarga automatizada de campos horarios de MSLP desde Copernicus CDS.
+   - `download_gfs_forecast.py`: Extracción directa de pronósticos operativos a 7 días vía NOAA NOMADS.
+2. **Frontend (`web/`):**
+   - Interfaz web reactiva en HTML5 semántico, CSS3 modular (tema *Deep Abyss*) y JavaScript Vanilla con Leaflet.js y Plotly.js, libre al 100% de dependencias de frameworks y de residuos del índice de Bakun.
 
 ---
 
@@ -87,20 +80,24 @@ dashboard-anticiclon-pacifico/
 ├── .github/workflows/              # Automatización y despliegue continuo
 ├── data/
 │   ├── raw/                        # Datos brutos NetCDF / GRIB (ignorados por Git)
-│   └── processed/                  # Métricas consolidadas en JSON y CSV
+│   ├── processed/                  # Métricas consolidadas en JSON y CSV
+│   └── shapefiles/                 # Máscara continental Natural Earth 10m
 ├── pipeline/                       # Pipeline científico en Python
+│   ├── spatial_geometry.py         # Geometría esférica, Natural Earth 10m y convolución
+│   ├── calculate_aps_metrics.py    # Submalla 2D, Par Dinámico, masa y desacople
 │   ├── download_era5.py            # Descarga de reanálisis ERA5 Copernicus
 │   ├── download_gfs_forecast.py    # Descarga operativa de pronóstico NOAA GFS
-│   ├── calculate_aps_metrics.py    # Detección del APS, cálculo de modelos y validación
 │   └── requirements.txt            # Dependencias científicas
+├── tests/                          # Suite de pruebas unitarias geofísicas
+│   └── test_aps_physics.py         # Pruebas de submalla, mayo, costas y desacople
 ├── web/                            # Visualizador web interactivo
-│   ├── index.html                  # Estructura principal y modales
+│   ├── index.html                  # Estructura principal, KPIs y modales KaTeX
 │   ├── styles/                     # Sistema de diseño CSS moderno
-│   ├── js/                         # Orquestador, mapas, series y selector
+│   ├── js/                         # Orquestador (main), mapas (maps) y gráficos (charts)
 │   ├── data/                       # Archivos JSON y CSV para el navegador y descarga
 │   └── assets/                     # Recursos gráficos y logo institucional LOFA
 ├── docs/                           # Documentación oceanográfica y metodológica
-│   └── METODOLOGIA.md              # Ecuaciones físicas del APS y dinámica de Ekman
+│   └── METODOLOGIA.md              # Ecuaciones físicas del Par Dinámico y Masa V5.3
 ├── CITATION.cff                    # Metadatos estandarizados para citar este software
 ├── LICENSE                         # Licencia libre GNU AGPLv3
 └── README.md
@@ -130,18 +127,40 @@ cd dashboard-anticiclon-pacifico
 ```
 
 ### 2. Configurar el entorno de Python
+Crea el entorno virtual e instala las dependencias. 
+
+> [!TIP]
+> Si utilizas **Fish Shell** (muy común en Arch Linux), debes activar con `source venv/bin/activate.fish`. O bien, puedes invocar los binarios directamente sin activar el entorno.
+
+**Opción A: Invocación directa (Universal para Bash, Zsh y Fish — recomendada en Arch Linux):**
 ```bash
 python3 -m venv venv
-source venv/bin/activate
-pip install -r pipeline/requirements.txt
+./venv/bin/pip install -r pipeline/requirements.txt
 ```
+
+**Opción B: Activando el entorno según tu shell:**
+- **Bash / Zsh:**
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install -r pipeline/requirements.txt
+  ```
+- **Fish Shell:**
+  ```fish
+  python3 -m venv venv
+  source venv/bin/activate.fish
+  pip install -r pipeline/requirements.txt
+  ```
 
 ### 3. Ejecutar el pipeline de métricas
 ```bash
-python pipeline/calculate_aps_metrics.py
+./venv/bin/python pipeline/calculate_aps_metrics.py
+# O si activaste el entorno virtual:
+# python pipeline/calculate_aps_metrics.py
 ```
 
 ### 4. Servidor de prueba local
+Para visualizar la interfaz web de inmediato:
 ```bash
 python3 -m http.server 8000 --directory web
 ```

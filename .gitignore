@@ -44,6 +44,8 @@ data/raw/*
 !data/raw/.gitkeep
 data/temp/*
 !data/temp/.gitkeep
+data/shapefiles/*
+!data/shapefiles/.gitkeep
 
 # Credenciales y archivos sensibles
 *.env
@@ -67,3 +69,12 @@ yarn-error.log*
 
 # Ignorar todos los planes de acción
 Plan_Accion_*.md
+
+# Ignorar explicaciones/resumenes/revisiones
+explicacion_*.md
+Revision_*.md
+sugerencias_*.md
+estructura_*.md
+estructura_*.txt
+estado_*.md
+comparativa_*.md

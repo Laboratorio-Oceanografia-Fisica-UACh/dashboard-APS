@@ -296,95 +296,115 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const activeDate = timelineDates[currentDateIndex];
     const kpiPressure = document.getElementById('kpiPressure');
-    const kpiPosition = document.getElementById('kpiPosition');
     const kpiAnomaly = document.getElementById('kpiAnomaly');
-    const kpiDate = document.getElementById('kpiDate');
-    const kpiModelFocus = document.getElementById('kpiModelFocus');
-    const kpiAnomalySub = document.getElementById('kpiAnomalySub');
-    const kpiDateSub = document.getElementById('kpiDateSub');
+    const kpiPosition = document.getElementById('kpiPosition');
+    const kpiCentroid = document.getElementById('kpiCentroid');
+    const kpiArea = document.getElementById('kpiArea');
+    const kpiVolume = document.getElementById('kpiVolume');
+    const kpiDecoupling = document.getElementById('kpiDecoupling');
+    const kpiDecouplingBadge = document.getElementById('kpiDecouplingBadge');
+    const kpiPatagonia = document.getElementById('kpiPatagonia');
+    const kpiPatagoniaSub = document.getElementById('kpiPatagoniaSub');
 
     const climBaseline = getClimatologyForDate(activeDate);
 
-    if (focusedModelId === 'ensemble') {
-      // Modo Ensamble Multimodelo: calcular media y dispersión inter-modelo
-      const selectedIds = modelSelector.getSelectedModelIds();
-      const pVals = [];
-      const latVals = [];
-      const lonVals = [];
+    // Obtener modelo enfocado
+    const model = Object.values(rawData.models).find(m => m.id === focusedModelId) ||
+                  rawData.models['ERA5 Reanálisis'] ||
+                  Object.values(rawData.models)[0];
 
-      for (const model of Object.values(rawData.models)) {
-        if (!selectedIds.includes(model.id)) continue;
-        const dIdx = model.dates.indexOf(activeDate);
-        if (dIdx !== -1) {
-          pVals.push(model.pressure_psa[dIdx]);
-          latVals.push(model.lat[dIdx]);
-          lonVals.push(model.lon[dIdx]);
-        }
+    if (model) {
+      const dIdx = model.dates.indexOf(activeDate);
+
+      let p = 1024.0;
+      let latCore = -33.5;
+      let lonCore = -91.0;
+      let latCent = null;
+      let lonCent = null;
+      let area1020 = null;
+      let vol = null;
+      let hEff = null;
+      let distDec = null;
+      let azimuth = null;
+      let pPat = null;
+
+      if (dIdx !== -1) {
+        p = model.p_max_fit ? model.p_max_fit[dIdx] : model.pressure_psa[dIdx];
+        latCore = model.lat_core ? model.lat_core[dIdx] : model.lat[dIdx];
+        lonCore = model.lon_core ? model.lon_core[dIdx] : model.lon[dIdx];
+        latCent = model.lat_centroid ? model.lat_centroid[dIdx] : null;
+        lonCent = model.lon_centroid ? model.lon_centroid[dIdx] : null;
+        area1020 = model.area_1020 ? model.area_1020[dIdx] : null;
+        vol = model.vol_integral ? model.vol_integral[dIdx] : null;
+        hEff = model.h_eff ? model.h_eff[dIdx] : null;
+        distDec = model.dist_decoupling_km ? model.dist_decoupling_km[dIdx] : null;
+        azimuth = model.azimuth_deg ? model.azimuth_deg[dIdx] : null;
+        pPat = model.p_patagonia ? model.p_patagonia[dIdx] : null;
+      } else if (model.latest) {
+        p = model.latest.p_max_fit || model.latest.pressure_psa;
+        latCore = model.latest.lat_core || model.latest.lat;
+        lonCore = model.latest.lon_core || model.latest.lon;
+        latCent = model.latest.lat_centroid || null;
+        lonCent = model.latest.lon_centroid || null;
+        area1020 = model.latest.area_1020 || null;
+        vol = model.latest.vol_integral || null;
+        hEff = model.latest.h_eff || null;
+        distDec = model.latest.dist_decoupling_km || null;
+        azimuth = model.latest.azimuth_deg || null;
+        pPat = model.latest.p_patagonia || null;
       }
 
-      if (pVals.length > 0) {
-        const meanP = pVals.reduce((a, b) => a + b, 0) / pVals.length;
-        const meanLat = latVals.reduce((a, b) => a + b, 0) / latVals.length;
-        const meanLon = lonVals.reduce((a, b) => a + b, 0) / lonVals.length;
+      const anom = (p - climBaseline).toFixed(2);
 
-        // Desviación estándar barométrica
-        const stdP = Math.sqrt(pVals.reduce((acc, v) => acc + Math.pow(v - meanP, 2), 0) / pVals.length);
-        const anomaly = (meanP - climBaseline).toFixed(1);
-
-        if (kpiPressure) kpiPressure.innerHTML = `${meanP.toFixed(1)} <small>± ${stdP.toFixed(1)} hPa</small>`;
-        if (kpiPosition) kpiPosition.textContent = `${Math.abs(meanLat).toFixed(1)}°S, ${Math.abs(meanLon).toFixed(1)}°W`;
-        if (kpiAnomaly) {
-          const sign = anomaly > 0 ? '+' : '';
-          kpiAnomaly.innerHTML = `${sign}${anomaly} <small>hPa</small>`;
-          kpiAnomaly.style.color = anomaly >= 0 ? 'var(--color-gold)' : 'var(--color-accent)';
-        }
-        if (kpiModelFocus) kpiModelFocus.textContent = `Ensamble de ${pVals.length} modelos activos`;
+      // KPI 1: Presión Central
+      if (kpiPressure) kpiPressure.innerHTML = `${p.toFixed(2)} <small>hPa</small>`;
+      if (kpiAnomaly) {
+        const sign = anom >= 0 ? '+' : '';
+        kpiAnomaly.innerHTML = `Anomalía WMO: <strong style="color: ${anom >= 0 ? '#fbbf24' : '#38bdf8'};">${sign}${anom} hPa</strong>`;
       }
-    } else {
-      // Modelo Individual en Foco
-      const model = Object.values(rawData.models).find(m => m.id === focusedModelId) || Object.values(rawData.models)[0];
-      if (model) {
-        let p = 1024.0;
-        let lat = -33.0;
-        let lon = -90.0;
 
-        const dIdx = model.dates.indexOf(activeDate);
-        if (dIdx !== -1) {
-          p = model.pressure_psa[dIdx];
-          lat = model.lat[dIdx];
-          lon = model.lon[dIdx];
-        } else if (model.latest) {
-          p = model.latest.pressure_psa;
-          lat = model.latest.lat;
-          lon = model.latest.lon;
-        }
-
-        const anomaly = (p - climBaseline).toFixed(1);
-
-        if (kpiPressure) kpiPressure.innerHTML = `${p.toFixed(1)} <small>hPa</small>`;
-        if (kpiPosition) kpiPosition.textContent = `${Math.abs(lat).toFixed(1)}°S, ${Math.abs(lon).toFixed(1)}°W`;
-        if (kpiAnomaly) {
-          const sign = anomaly > 0 ? '+' : '';
-          kpiAnomaly.innerHTML = `${sign}${anomaly} <small>hPa</small>`;
-          kpiAnomaly.style.color = anomaly >= 0 ? 'var(--color-gold)' : 'var(--color-accent)';
-        }
-        if (kpiModelFocus) kpiModelFocus.textContent = `Modelo: ${model.name}`;
+      // KPI 2: Par Dinámico
+      if (kpiPosition) kpiPosition.textContent = `Núcleo (+): ${Math.abs(latCore).toFixed(2)}°S, ${Math.abs(lonCore).toFixed(2)}°W`;
+      if (kpiCentroid) {
+        kpiCentroid.textContent = latCent !== null ?
+          `Centroide (◇): ${Math.abs(latCent).toFixed(2)}°S, ${Math.abs(lonCent).toFixed(2)}°W` :
+          'Centroide: No disponible';
       }
-    }
 
-    if (kpiDate) kpiDate.textContent = activeDate;
-    if (kpiAnomalySub) kpiAnomalySub.textContent = `Respecto a normal climática (${climBaseline.toFixed(1)} hPa)`;
+      // KPI 3: Extensión y Masa
+      if (kpiArea) kpiArea.innerHTML = area1020 !== null ? `${area1020.toFixed(2)} <small>M km²</small>` : '-- <small>M km²</small>';
+      if (kpiVolume) {
+        kpiVolume.textContent = vol !== null ?
+          `Volumen: ${vol.toFixed(1)} hPa·M km² (H̄: ${hEff ? hEff.toFixed(2) : '--'} hPa)` :
+          'Volumen: -- hPa·M km²';
+      }
 
-    // Si estamos en fecha de pronóstico GFS, actualizar detalles informativos
-    const gfsModel = rawData.models['NOAA GFS Pronóstico'] || Object.values(rawData.models).find(m => m.id === 'noaa_gfs_forecast');
-    const isForecast = !!(gfsModel && gfsModel.dates && gfsModel.dates.includes(activeDate));
-    if (isForecast && gfsModel) {
-      const dIdx = gfsModel.dates.indexOf(activeDate);
-      const hours = dIdx * 24;
-      if (kpiModelFocus) kpiModelFocus.innerHTML = `🛰️ Pronóstico NOAA GFS (+${hours}h)`;
-      if (kpiDateSub) kpiDateSub.textContent = `Paso de Pronóstico Numérico GFS (+${hours} horas)`;
-    } else if (kpiDateSub && rawData.metadata && rawData.metadata.time_coverage) {
-      kpiDateSub.textContent = `Registro: ${rawData.metadata.time_coverage.start} a ${rawData.metadata.time_coverage.end}`;
+      // KPI 4: Desacople Morfológico
+      if (kpiDecoupling) {
+        kpiDecoupling.textContent = distDec !== null ? `${distDec.toFixed(1)} km (${azimuth ? azimuth.toFixed(1) : '--'}°)` : '-- km';
+      }
+      if (kpiDecouplingBadge && distDec !== null) {
+        let badgeHtml = '';
+        if (distDec < 200) {
+          badgeHtml = '<span class="badge-regime-symmetric">Simétrico Concéntrico</span>';
+        } else if (azimuth >= 45 && azimuth < 135) {
+          badgeHtml = '<span class="badge-regime-coastal">Cuña Costera (Chile Central)</span>';
+        } else if (azimuth >= 135 && azimuth < 225) {
+          badgeHtml = '<span class="badge-regime-blocking">Bloqueo Patagónico Austral</span>';
+        } else {
+          badgeHtml = '<span class="badge-regime-oceanic">Elongación Oceánica</span>';
+        }
+        kpiDecouplingBadge.innerHTML = badgeHtml;
+      }
+
+      // KPI 5: Caja Norpatagonia
+      if (kpiPatagonia) kpiPatagonia.innerHTML = pPat !== null ? `${pPat.toFixed(2)} <small>hPa</small>` : '-- <small>hPa</small>';
+      if (kpiPatagoniaSub) {
+        const isBlocking = pPat !== null && pPat >= 1018.0;
+        kpiPatagoniaSub.innerHTML = isBlocking ?
+          '<span style="color: #f87171; font-weight:700;">🚨 Condición de Bloqueo Activa</span>' :
+          '<span style="color: #94a3b8;">Sinóptica Normal</span>';
+      }
     }
   }
 
@@ -395,11 +415,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gfsModel = rawData.models['NOAA GFS Pronóstico'] || Object.values(rawData.models).find(m => m.id === 'noaa_gfs_forecast');
     const isForecast = !!(gfsModel && gfsModel.dates && gfsModel.dates.includes(activeDate));
 
-    let lat = -33.5;
-    let lon = -91.0;
-    let p = 1024.0;
-
-    // Obtener coordenadas del modelo enfocado o GFS si es fecha de pronóstico
     let targetModel = null;
     if (isForecast && gfsModel) {
       targetModel = gfsModel;
@@ -410,67 +425,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    let latCore = -33.5;
+    let lonCore = -91.0;
+    let latCent = null;
+    let lonCent = null;
+    let p = 1024.0;
+    let distDec = null;
+    let azimuth = null;
+    let area1020 = null;
+    let vol = null;
+
     if (targetModel && targetModel.dates) {
       const dIdx = targetModel.dates.indexOf(activeDate);
       if (dIdx !== -1) {
-        lat = targetModel.lat[dIdx];
-        lon = targetModel.lon[dIdx];
-        p = targetModel.pressure_psa[dIdx];
+        latCore = targetModel.lat_core ? targetModel.lat_core[dIdx] : targetModel.lat[dIdx];
+        lonCore = targetModel.lon_core ? targetModel.lon_core[dIdx] : targetModel.lon[dIdx];
+        latCent = targetModel.lat_centroid ? targetModel.lat_centroid[dIdx] : null;
+        lonCent = targetModel.lon_centroid ? targetModel.lon_centroid[dIdx] : null;
+        p = targetModel.p_max_fit ? targetModel.p_max_fit[dIdx] : targetModel.pressure_psa[dIdx];
+        distDec = targetModel.dist_decoupling_km ? targetModel.dist_decoupling_km[dIdx] : null;
+        azimuth = targetModel.azimuth_deg ? targetModel.azimuth_deg[dIdx] : null;
+        area1020 = targetModel.area_1020 ? targetModel.area_1020[dIdx] : null;
+        vol = targetModel.vol_integral ? targetModel.vol_integral[dIdx] : null;
       } else if (targetModel.latest) {
-        lat = targetModel.latest.lat;
-        lon = targetModel.latest.lon;
-        p = targetModel.latest.pressure_psa;
+        latCore = targetModel.latest.lat_core || targetModel.latest.lat;
+        lonCore = targetModel.latest.lon_core || targetModel.latest.lon;
+        latCent = targetModel.latest.lat_centroid || null;
+        lonCent = targetModel.latest.lon_centroid || null;
+        p = targetModel.latest.p_max_fit || targetModel.latest.pressure_psa;
+        distDec = targetModel.latest.dist_decoupling_km || null;
+        azimuth = targetModel.latest.azimuth_deg || null;
+        area1020 = targetModel.latest.area_1020 || null;
+        vol = targetModel.latest.vol_integral || null;
       }
     }
 
-    const upwellingMetrics = mapsInstance.updatePressureMap(lat, lon, p, activeDate, isForecast, rawData.spatial_grid);
-    const climBaseline = getClimatologyForDate(activeDate);
-    mapsInstance.updateAnomalyMap(lat, lon, rawData.spatial_grid, activeDate, climBaseline);
+    const extraMetrics = {
+      dist_decoupling_km: distDec,
+      azimuth_deg: azimuth,
+      area_1020: area1020,
+      vol_integral: vol
+    };
 
-    updateUpwellingUI(upwellingMetrics);
-  }
+    mapsInstance.updatePressureMap(
+      latCore, lonCore, p, latCent, lonCent,
+      activeDate, isForecast, rawData.spatial_grid, extraMetrics
+    );
 
-  function updateUpwellingUI(metrics) {
-    if (!metrics || metrics.length === 0) return;
-
-    const grid = document.getElementById('upwellingStationsGrid');
-    if (grid) {
-      grid.innerHTML = metrics.map(m => `
-        <div class="upwelling-station-card" onclick="document.getElementById('openUpwellingModalBtn').click()" title="Ver dinámica de surgencia en ${m.name}">
-          <div class="station-card-top">
-            <span class="station-name">⚓ ${m.name}</span>
-            <span class="badge-ui ${m.statusClass}">${m.statusText.split(' ')[0]}</span>
-          </div>
-          <span class="station-region">${m.region}</span>
-          <div class="station-card-metrics">
-            <span class="station-ui-value" style="color: ${m.statusColor};">
-              ${m.ui > 0 ? '+' : ''}${Math.round(m.ui)} <small style="font-size: 0.72rem; font-weight: 400; color: #94a3b8;">m³/(s·km)</small>
-            </span>
-            <span class="station-wind-value">
-              ${m.speedKnots.toFixed(1)} kt (${m.v10 >= 0 ? 'Sur' : 'Norte'})
-            </span>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    const modalTableBody = document.getElementById('upwellingModalTableBody');
-    if (modalTableBody) {
-      modalTableBody.innerHTML = metrics.map(m => `
-        <tr>
-          <td><strong>⚓ ${m.name}</strong></td>
-          <td>${m.region}</td>
-          <td>${Math.abs(m.coords[0]).toFixed(2)}°S</td>
-          <td style="font-family: var(--font-mono);">${(m.dpDx * 1000).toFixed(2)} mPa/m</td>
-          <td style="font-family: var(--font-mono);">${m.speedKnots.toFixed(1)} kt (${m.v10 >= 0 ? 'S' : 'N'})</td>
-          <td style="font-family: var(--font-mono);">${m.tauY.toFixed(3)} N/m²</td>
-          <td style="font-family: var(--font-mono); font-weight: 700; color: ${m.statusColor};">
-            ${m.ui > 0 ? '+' : ''}${Math.round(m.ui)} m³/(s·km)
-          </td>
-          <td><span class="badge-ui ${m.statusClass}">${m.statusText}</span></td>
-        </tr>
-      `).join('');
-    }
+    mapsInstance.updateAnomalyMap(rawData.spatial_grid, latCore, lonCore, p);
   }
 
   // =========================================================================
@@ -545,25 +547,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (footerMethodologyBtn) footerMethodologyBtn.addEventListener('click', () => openModal('methodologyModalOverlay'));
 
     // 4. Modal Cómo Citar (Navbar y Footer)
-    const openCitationBtn = document.getElementById('openCitationModalBtn');
+    const openCitationBtn = document.getElementById('openCitationBtn');
     const footerCitationBtn = document.getElementById('footerCitationBtn');
     if (openCitationBtn) openCitationBtn.addEventListener('click', () => openModal('citationModalOverlay'));
     if (footerCitationBtn) footerCitationBtn.addEventListener('click', () => openModal('citationModalOverlay'));
-
-    // 5. Modal Dinámica de Surgencia Costera (UI)
-    const openUpwellingBtn = document.getElementById('openUpwellingModalBtn');
-    const ribbonOpenUpwellingBtn = document.getElementById('ribbonOpenUpwellingModalBtn');
-    if (openUpwellingBtn) openUpwellingBtn.addEventListener('click', () => openModal('upwellingModalOverlay'));
-    if (ribbonOpenUpwellingBtn) ribbonOpenUpwellingBtn.addEventListener('click', () => openModal('upwellingModalOverlay'));
-
-    // 6. Botón alternador de capa de surgencia en mapa
-    const toggleUpwellingBtn = document.getElementById('toggleUpwellingLayerBtn');
-    if (toggleUpwellingBtn) {
-      toggleUpwellingBtn.addEventListener('click', () => {
-        const active = mapsInstance.toggleUpwellingLayer();
-        toggleUpwellingBtn.classList.toggle('active', active);
-      });
-    }
 
     // Copiar Citas al portapapeles con feedback
     const copyApaBtn = document.getElementById('copyApaBtn');

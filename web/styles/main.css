@@ -1649,3 +1649,84 @@ body {
     align-items: flex-start;
   }
 }
+
+
+/* ==========================================================================
+   Marcadores del Par Dinámico V5.3 (LOFA - UACh)
+   ========================================================================== */
+.aps-core-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fbbf24;
+  border: 2px solid #000;
+  color: #000;
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.9);
+  cursor: pointer;
+}
+
+.aps-centroid-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #06b6d4;
+  border: 2px solid #ffffff;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 12px;
+  line-height: 1;
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.9);
+  cursor: pointer;
+}
+
+.aps-centroid-marker span {
+  transform: rotate(-45deg);
+  display: block;
+}
+
+/* Badges de Régimen Sinóptico V5.3 */
+.badge-regime-symmetric {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.badge-regime-coastal {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.badge-regime-blocking {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.badge-regime-oceanic {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 600;
+}

@@ -12,6 +12,38 @@ import sys
 import argparse
 from pathlib import Path
 
+# Raíz del proyecto calculada desde la ubicación del script, no desde el CWD.
+# Así, ejecutar `python pipeline/download_era5.py` desde cualquier carpeta
+# siempre apunta a la estructura real del repositorio.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def resolve_output_dir(output_dir):
+    """
+    Resuelve el directorio de destino. Las rutas relativas se interpretan
+    respecto a la raíz del proyecto, nunca respecto al directorio actual.
+    """
+    path = Path(output_dir).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path
+
+
+def year_filepath(output_dir, year):
+    """Ruta del NetCDF anual dentro del directorio de destino."""
+    return Path(output_dir) / f"era5_mslp_pacifico_{year}.nc"
+
+
+def is_already_downloaded(filepath):
+    """
+    Considera descargado un año solo si el archivo existe y tiene contenido.
+    Un archivo vacío se trata como incompleto y se vuelve a solicitar.
+    """
+    try:
+        return filepath.is_file() and filepath.stat().st_size > 0
+    except OSError:
+        return False
+
 
 def check_cds_credentials():
     """
@@ -30,7 +62,16 @@ def check_cds_credentials():
 def download_era5_mslp(years, months, output_dir, synoptic_only=False):
     """
     Descarga Presión a Nivel del Mar (MSLP) para el Anticiclón del Pacífico Sur directamente en .nc.
+    Nunca sobrescribe archivos existentes: los años ya presentes se omiten y cada
+    descarga se escribe primero en un archivo temporal que solo se renombra al finalizar.
     """
+    output_dir = Path(output_dir)
+
+    pending = [y for y in years if not is_already_downloaded(year_filepath(output_dir, y))]
+    if not pending:
+        print("✅ [COMPLETO] Todos los años solicitados ya están descargados. No hay nada que hacer.")
+        return
+
     if not check_cds_credentials():
         sys.exit(1)
 
@@ -41,7 +82,7 @@ def download_era5_mslp(years, months, output_dir, synoptic_only=False):
         print("pip install cdsapi")
         sys.exit(1)
 
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     client = cdsapi.Client()
 
     # Horas a descargar:
@@ -59,14 +100,17 @@ def download_era5_mslp(years, months, output_dir, synoptic_only=False):
     # Dominio APS extendido: 10°S a 56°S y 130°W a 65°W (captura Chiloé, Golfo de Penas, Drake y Patagonia)
     bounding_box = [-10, -130, -56, -65]
 
-    for year in years:
-        nc_filename = f"era5_mslp_pacifico_{year}.nc"
-        nc_filepath = os.path.join(output_dir, nc_filename)
+    for year in pending:
+        nc_filepath = year_filepath(output_dir, year)
 
-        # Si el archivo ya existe por haber sido descargado previamente en esta corrida, se omite
-        if os.path.exists(nc_filepath):
+        # Verificación previa: si el año ya está en disco, se respeta y se salta.
+        if is_already_downloaded(nc_filepath):
             print(f"⏩ [SALTANDO] El año {year} ya existe en {nc_filepath}")
             continue
+
+        # Archivo temporal: la descarga nunca escribe directamente sobre el NetCDF final.
+        # Si falla, el archivo final previo (si existiera) queda intacto.
+        temp_filepath = output_dir / f".{nc_filepath.name}.{os.getpid()}.part"
 
         print("\n" + "=" * 60)
         print(f"🌊 [ERA5] Solicitando datos horarios para el año: {year}")
@@ -89,10 +133,15 @@ def download_era5_mslp(years, months, output_dir, synoptic_only=False):
         }
 
         try:
-            client.retrieve(dataset, request, nc_filepath)
+            client.retrieve(dataset, request, str(temp_filepath))
+            if not is_already_downloaded(temp_filepath):
+                raise RuntimeError("la descarga generó un archivo vacío o inexistente")
+            os.replace(temp_filepath, nc_filepath)
             print(f"✅ [ÉXITO] Año {year} descargado directamente en NetCDF: {nc_filepath}")
 
         except Exception as e:
+            if temp_filepath.exists():
+                temp_filepath.unlink()
             print(f"❌ [ERROR] Falló la descarga del año {year}: {e}")
             print("El script continuará con los siguientes años...")
 
@@ -128,7 +177,8 @@ def main():
         "--output-dir",
         type=str,
         default="data/raw/mean_sea_level_pressure",
-        help="Directorio de destino (por defecto: data/raw/mean_sea_level_pressure)"
+        help="Directorio de destino. Las rutas relativas se resuelven desde la raíz del proyecto "
+             "(por defecto: data/raw/mean_sea_level_pressure)"
     )
     parser.add_argument(
         "--synoptic-only",
@@ -138,19 +188,41 @@ def main():
 
     args = parser.parse_args()
 
-    # Determinar la lista de años a procesar
+    # Determinar la lista de años a procesar (sin duplicados, conservando el orden)
     if args.years:
-        years_to_download = [int(y) for y in args.years]
+        years_to_download = list(dict.fromkeys(int(y) for y in args.years))
     else:
         years_to_download = list(range(args.start_year, args.end_year + 1))
 
-    print(f"📋 Plan de descarga: {len(years_to_download)} años en cola ({years_to_download[0]} a {years_to_download[-1]})")
-    print(f"📂 Carpeta de destino: {args.output_dir}")
+    if not years_to_download:
+        print("❌ [ERROR] No se definió ningún año para descargar.")
+        return
+
+    output_dir = resolve_output_dir(args.output_dir)
+
+    # Verificar qué años ya existen ANTES de solicitar nada a Copernicus.
+    years_missing = [
+        year for year in years_to_download
+        if not is_already_downloaded(year_filepath(output_dir, year))
+    ]
+    years_present = len(years_to_download) - len(years_missing)
+
+    print(f"📋 Plan de descarga: {len(years_to_download)} años solicitados "
+          f"({years_to_download[0]} a {years_to_download[-1]})")
+    print(f"📂 Carpeta de destino: {output_dir}")
+    print(f"✅ Años ya descargados (se respetarán y omitirán): {years_present}")
+
+    if not years_missing:
+        print("🎉 [COMPLETO] No falta ningún año por descargar. No se solicitó nada a Copernicus.")
+        return
+
+    print(f"⬇️  Años faltantes en cola: {len(years_missing)} "
+          f"({', '.join(str(y) for y in years_missing)})")
 
     download_era5_mslp(
         years=years_to_download,
         months=args.months,
-        output_dir=args.output_dir,
+        output_dir=output_dir,
         synoptic_only=args.synoptic_only
     )
 
