@@ -20,15 +20,18 @@ import glob
 import json
 import argparse
 import datetime
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
-# Asegurar importación de spatial_geometry
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
+# Asegurar importación de los módulos del pipeline
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
+from pipeline.paths import ensure_parent_dir, resolve_project_path
 from pipeline.spatial_geometry import (
     download_and_load_natural_earth_10m,
     compute_cell_areas_km2,
@@ -409,7 +412,7 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
         return None
 
     # Guardar caché
-    os.makedirs(os.path.dirname(cache_csv_path), exist_ok=True)
+    ensure_parent_dir(cache_csv_path)
     combined_df.to_csv(cache_csv_path, index=False)
     print(f"✅ [CACHÉ V5.3] Base consolidada con {len(combined_df)} días guardada en {cache_csv_path}")
 
@@ -419,22 +422,32 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
 def extract_latest_spatial_grid(input_dir, df):
     """
     Extrae la última cuadrícula espacial 2D submuestreada a 0.5° para mapas.
+    Sincroniza el archivo de origen con el último año presente en df.
     """
     import xarray as xr
 
-    nc_pattern = os.path.join(input_dir, "era5_mslp_pacifico_*.nc")
-    valid_files = [f for f in glob.glob(nc_pattern) if not os.path.basename(f).startswith(("#", "."))]
-    valid_files.sort()
-    
-    if not valid_files:
-        return None
+    # 1. Identificar el archivo NetCDF correspondiente a la última fecha real de df
+    last_date_str = str(df.iloc[-1]["date"])
+    last_year = int(last_date_str[:4])
+    expected_file = Path(input_dir) / f"era5_mslp_pacifico_{last_year}.nc"
 
-    latest_file = valid_files[-1]
+    if expected_file.exists():
+        latest_file = str(expected_file)
+    else:
+        nc_pattern = os.path.join(input_dir, "era5_mslp_pacifico_*.nc")
+        valid_files = [f for f in glob.glob(nc_pattern) if not os.path.basename(f).startswith(("#", "."))]
+        valid_files.sort()
+        if not valid_files:
+            return None
+        latest_file = valid_files[-1]
+
     print(f"🗺️  Generando cuadrícula espacial para mapas a partir de: {os.path.basename(latest_file)}")
 
     with xr.open_dataset(latest_file) as ds:
         time_dim = "valid_time" if "valid_time" in ds.dims else "time"
-        latest_slp_da = ds["msl"].isel({time_dim: slice(-24, None)}).mean(dim=time_dim) / 100.0
+        
+        # Promedio diario robusto (compatible con 24h o con --synoptic-only de 4h)
+        latest_slp_da = (ds["msl"] / 100.0).resample({time_dim: "1D"}).mean(dim=time_dim).isel({time_dim: -1})
         
         # Submuestreo a 0.5° para transferencia web ligera
         sampled = latest_slp_da.sel(
@@ -555,7 +568,7 @@ def build_dashboard_dataset_v53(df, spatial_grid):
     }
 
     # Asimilar Pronóstico GFS si existe
-    gfs_forecast_path = "data/processed/gfs_forecast_aps.json"
+    gfs_forecast_path = resolve_project_path("data/processed/gfs_forecast_aps.json")
     gfs_skill = None
     if os.path.exists(gfs_forecast_path):
         try:
@@ -692,18 +705,26 @@ def build_dashboard_dataset_v53(df, spatial_grid):
 
 def main():
     parser = argparse.ArgumentParser(description="Pipeline V5.3 - Métricas del Anticiclón del Pacífico Sur (LOFA UACh)")
-    parser.add_argument("--input-dir", type=str, default="data/raw/mean_sea_level_pressure", help="Directorio con archivos NetCDF")
-    parser.add_argument("--output", type=str, default="data/processed/latest_aps_data.json", help="Ruta del archivo JSON de salida")
-    parser.add_argument("--cache-csv", type=str, default="data/processed/era5_daily_aps_metrics.csv", help="Ruta de caché CSV de series diarias")
+    parser.add_argument("--input-dir", type=str, default="data/raw/mean_sea_level_pressure",
+                        help="Directorio con archivos NetCDF. Las rutas relativas se resuelven desde la raíz del proyecto")
+    parser.add_argument("--output", type=str, default="data/processed/latest_aps_data.json",
+                        help="Ruta del archivo JSON de salida. Las rutas relativas se resuelven desde la raíz del proyecto")
+    parser.add_argument("--cache-csv", type=str, default="data/processed/era5_daily_aps_metrics.csv",
+                        help="Ruta de caché CSV de series diarias. Las rutas relativas se resuelven desde la raíz del proyecto")
     parser.add_argument("--recompute-all", action="store_true", help="Fuerza reprocesamiento completo ignorando caché previa")
     parser.add_argument("--start-year", type=int, default=None, help="Año de inicio de procesamiento")
     parser.add_argument("--end-year", type=int, default=None, help="Año final de procesamiento")
     
     args = parser.parse_args()
 
+    # Resolver rutas una sola vez: relativas a la raíz del proyecto, absolutas tal cual.
+    input_dir = resolve_project_path(args.input_dir)
+    output_path = resolve_project_path(args.output)
+    cache_csv_path = resolve_project_path(args.cache_csv)
+
     # 1. Procesar NetCDFs con la matemática V5.3
     df = process_netcdf_files(
-        args.input_dir, args.cache_csv,
+        input_dir, cache_csv_path,
         recompute_all=args.recompute_all,
         start_year=args.start_year,
         end_year=args.end_year
@@ -711,30 +732,34 @@ def main():
     
     if df is None or len(df) == 0:
         print("[ERROR] No se pudieron generar métricas. Verifica la carpeta de entrada.")
+        print(f"        Ruta esperada: {input_dir}")
+        print("        Descarga primero los datos ERA5 con pipeline/download_era5.py.")
         sys.exit(1)
 
     # 2. Rejilla espacial 2D más reciente
-    spatial_grid = extract_latest_spatial_grid(args.input_dir, df)
+    spatial_grid = extract_latest_spatial_grid(input_dir, df)
 
     # 3. Construir Dataset JSON y DataFrame Multimodelo
     dataset, multimodel_df = build_dashboard_dataset_v53(df, spatial_grid)
 
     # 4. Guardar salidas en data/processed/ y web/data/
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
+    ensure_parent_dir(output_path)
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(dataset, f, indent=2, ensure_ascii=False)
-    print(f"✅ [ÉXITO] Archivo web generado en: {args.output}")
+    print(f"✅ [ÉXITO] Archivo web generado en: {output_path}")
 
-    web_json_path = os.path.join("web", "data", "latest_aps_data.json")
-    os.makedirs(os.path.dirname(web_json_path), exist_ok=True)
+    web_json_path = resolve_project_path("web/data/latest_aps_data.json")
+    ensure_parent_dir(web_json_path)
     with open(web_json_path, "w", encoding="utf-8") as f:
         json.dump(dataset, f, indent=2, ensure_ascii=False)
     print(f"✅ [ÉXITO] Copia frontend generada en: {web_json_path}")
 
-    web_csv_path = os.path.join("web", "data", "era5_daily_aps_metrics.csv")
+    web_csv_path = resolve_project_path("web/data/era5_daily_aps_metrics.csv")
+    ensure_parent_dir(web_csv_path)
     df.to_csv(web_csv_path, index=False)
 
-    multimodel_csv_path = os.path.join("web", "data", "aps_multimodel_metrics_lofa.csv")
+    multimodel_csv_path = resolve_project_path("web/data/aps_multimodel_metrics_lofa.csv")
+    ensure_parent_dir(multimodel_csv_path)
     multimodel_df.to_csv(multimodel_csv_path, index=False)
     print(f"✅ [ÉXITO] CSV Multimodelo consolidado para descarga disponible en: {multimodel_csv_path}")
 

@@ -42,6 +42,10 @@ wheels/
 # Carpetas de datos locales pesados
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/mean_sea_level_pressure/
+!data/raw/mean_sea_level_pressure/.gitkeep
+!data/raw/ncep_reanalysis/
+!data/raw/ncep_reanalysis/.gitkeep
 data/temp/*
 !data/temp/.gitkeep
 data/shapefiles/*
@@ -52,6 +56,9 @@ data/shapefiles/*
 *.env.*
 credentials.json
 secrets.yml
+scripts/nas_env.example
+scripts/migrate_to_nas.sh
+scripts/nas_sync.sh
 
 # IDEs y SO
 .vscode/
@@ -69,6 +76,8 @@ yarn-error.log*
 
 # Ignorar todos los planes de acción
 Plan_Accion_*.md
+Plan_correcion_*.md
+Plan_Correcion_*.md
 
 # Ignorar explicaciones/resumenes/revisiones
 explicacion_*.md
@@ -78,3 +87,11 @@ estructura_*.md
 estructura_*.txt
 estado_*.md
 comparativa_*.md
+
+# Ignorar avances en pruebas/pilotos/operaciones
+piloto_*.md
+progreso_*.md
+OPERACION_*.md
+
+# Ignorar notebooks para estudiar
+Anticiclon.ipynb

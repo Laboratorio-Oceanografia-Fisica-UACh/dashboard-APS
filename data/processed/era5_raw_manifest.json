@@ -1,0 +1,618 @@
+{
+  "dataset": "era5",
+  "generated_at": "2026-11-17T07:09:20.501344+00:00",
+  "source_dir": "data/raw/mean_sea_level_pressure",
+  "file_count": 87,
+  "total_bytes": 51513597131,
+  "files": [
+    {
+      "filename": "era5_mslp_pacifico_1940.nc",
+      "year": 1940,
+      "size_bytes": 595369540,
+      "sha256": "9a92b67b3b4a5ca8c2a9fc3d856f44e46a868bc78363adbbc75919b163a34e65",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1940.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1941.nc",
+      "year": 1941,
+      "size_bytes": 596288934,
+      "sha256": "99452928782073f27998d250b973ae1712f49afec8d0fce6992cab584ff902e2",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1941.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1942.nc",
+      "year": 1942,
+      "size_bytes": 594511622,
+      "sha256": "9c58e5d51e082d2273edf004cb3a257f96aff10c5f739739500712068f81864f",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1942.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1943.nc",
+      "year": 1943,
+      "size_bytes": 598462632,
+      "sha256": "ec597c186750b0b9e5201b7a5f3a9bd334feaa54081c65a8d76c1d3db5eae743",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1943.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1944.nc",
+      "year": 1944,
+      "size_bytes": 594656109,
+      "sha256": "e8e0990b5e636fdc303d14a211534387d875ee094fa0b827df5c0ab775c91fab",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1944.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1945.nc",
+      "year": 1945,
+      "size_bytes": 598286068,
+      "sha256": "549b9c5365eb93d5774e5e15e361ca8a3ada66f11b787afe35d135751bee7857",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1945.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1946.nc",
+      "year": 1946,
+      "size_bytes": 592347693,
+      "sha256": "629d5cfa87020113a0bd6562eadab0a19e24d52636acf34d9e8ac4becae3f59f",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1946.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1947.nc",
+      "year": 1947,
+      "size_bytes": 592131426,
+      "sha256": "63be012ad063d3df72d25a602a1aee5479ae1df3a0548183a8c4195266835ea2",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1947.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1948.nc",
+      "year": 1948,
+      "size_bytes": 599269972,
+      "sha256": "47589336e60c40c340c6d2a9e34f9e1ad19ff9276fa8cee0fa6c36be45868239",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1948.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1949.nc",
+      "year": 1949,
+      "size_bytes": 596152389,
+      "sha256": "bf4da113ed2cae553000e14a7bcf52907d9e06e3ae3bf90057f5c5c383366ec6",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1949.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1950.nc",
+      "year": 1950,
+      "size_bytes": 595465346,
+      "sha256": "c337e76222bd1b7dcc4da26207672951f4b6d1b8a28dca2d3a3694c12c4ba223",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1950.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1951.nc",
+      "year": 1951,
+      "size_bytes": 592195922,
+      "sha256": "970950906b2d29da96ba42ee552749125d48eb0af07d356ea2d9111a68b002b7",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1951.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1952.nc",
+      "year": 1952,
+      "size_bytes": 593675322,
+      "sha256": "c8b8db7a650440d6fdef8df406d61d7a177f5f3ed608c788c984105dcce07d35",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1952.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1953.nc",
+      "year": 1953,
+      "size_bytes": 594914288,
+      "sha256": "496e1a3d7058a7aecc35e73c14ac5ae21e7820183698eae4a64f1d23672fd247",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1953.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1954.nc",
+      "year": 1954,
+      "size_bytes": 590753852,
+      "sha256": "0ba2ec592725005642b889242f2143b5d3442984134ce09ec3c0a39d3c33925e",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1954.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1955.nc",
+      "year": 1955,
+      "size_bytes": 596465189,
+      "sha256": "65b46f3d3b4ad5c1004da1414ad5dd66c9f2f561f8d50b7fbc9dd2c084d92082",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1955.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1956.nc",
+      "year": 1956,
+      "size_bytes": 597457344,
+      "sha256": "06e86a6c7d44e6ac347d695ae27f9ab1ad48fb3d8ceafbd5b18c976683eec7dc",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1956.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1957.nc",
+      "year": 1957,
+      "size_bytes": 597459644,
+      "sha256": "7f2a0839fe9d6fc268b0888223ee4008029e900ab5ef77d8f9d3a21b27e76ac3",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1957.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1958.nc",
+      "year": 1958,
+      "size_bytes": 596111531,
+      "sha256": "476d75b4dd53fe208f844ea5bd543e8d3cbee1d571c9b527cc94f839ba5b9991",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1958.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1959.nc",
+      "year": 1959,
+      "size_bytes": 595122139,
+      "sha256": "daae44c5f8b1dd031ba651c421bd6c4f7c2ca97fdc163f85223724f9a5cace2e",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1959.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1960.nc",
+      "year": 1960,
+      "size_bytes": 596233554,
+      "sha256": "8034b04b41b21436a66015f54983b29aa1157ac7f2e2faa18b3e2e4d34b73018",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1960.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1961.nc",
+      "year": 1961,
+      "size_bytes": 599791937,
+      "sha256": "431d8dd8482d7243f3d50c0c3cc36dacf9b5a5f6920fd8b686201c1f09a4b7f1",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1961.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1962.nc",
+      "year": 1962,
+      "size_bytes": 589973959,
+      "sha256": "50bd6482d9937c059c9d751407f3207bc3f0482638663cc8cd4f53406cc4205f",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1962.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1963.nc",
+      "year": 1963,
+      "size_bytes": 594212838,
+      "sha256": "f5aa12a5b3ff5a4d12dfa167ead421cd5d75c7e1c9838b9267f570649ded87d6",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1963.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1964.nc",
+      "year": 1964,
+      "size_bytes": 594331015,
+      "sha256": "fc44220af8dd87460358bd0fe006a99af389ef0713cffea977b3f343d8bfc1e9",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1964.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1965.nc",
+      "year": 1965,
+      "size_bytes": 596285361,
+      "sha256": "bd043c51ccffa9334474cbac96596c1315da4f9a5c872d86a00f92e065b07f71",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1965.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1966.nc",
+      "year": 1966,
+      "size_bytes": 602875327,
+      "sha256": "0295affa33dbaede0a904f3dddaa9c6663df96f86e146c8c94225084f49c3867",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1966.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1967.nc",
+      "year": 1967,
+      "size_bytes": 597742968,
+      "sha256": "1a2fe14d471334813bde4c07756dc409f11c2f50797f95d5d866c7c6a91c3085",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1967.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1968.nc",
+      "year": 1968,
+      "size_bytes": 598171122,
+      "sha256": "8f1b4eb9ca8c4e500b01a899bea09ea72e2a7743181f12a916dc5e3f421d5de9",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1968.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1969.nc",
+      "year": 1969,
+      "size_bytes": 597037663,
+      "sha256": "402b1b0ec10d7056036aecc948676929281897161c5a1472aec8a753cb0cd28d",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1969.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1970.nc",
+      "year": 1970,
+      "size_bytes": 592153299,
+      "sha256": "b8122e9d7a204bf7726438e540f33d0ea8aee4031be394cf7f7fbf47162876da",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1970.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1971.nc",
+      "year": 1971,
+      "size_bytes": 590495884,
+      "sha256": "b8083984cf2f91c936ca96f72be4d4ae937bde6926011017385678d9db6791af",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1971.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1972.nc",
+      "year": 1972,
+      "size_bytes": 594853641,
+      "sha256": "64066d897b7bc1116514421e56b92be04c5cb65a0cebdc95dd6df0edb94db0c0",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1972.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1973.nc",
+      "year": 1973,
+      "size_bytes": 596236914,
+      "sha256": "9770cead6bf0298135b7ef119e38f694d3e7a6a0124706685e1e8a1e3393e964",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1973.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1974.nc",
+      "year": 1974,
+      "size_bytes": 587733706,
+      "sha256": "69c4c9948306b96210924ad0795ff36720b62e943ba9b37624b0c0de9587922d",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1974.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1975.nc",
+      "year": 1975,
+      "size_bytes": 597438300,
+      "sha256": "db9e369b668b6dde8b0a19bf5b9e464b53fe8b569f0dda99328954b8e081d08e",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1975.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1976.nc",
+      "year": 1976,
+      "size_bytes": 597719836,
+      "sha256": "533812973ba2a92d03e208b25b6ec5bb44bd75ba7c3dc40d027bd38fbff1e887",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1976.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1977.nc",
+      "year": 1977,
+      "size_bytes": 600115352,
+      "sha256": "5744a4058f155aadb4c9b449bdc30878f4c6fed41dd8a39aef81f0f99e4196ca",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1977.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1978.nc",
+      "year": 1978,
+      "size_bytes": 589801289,
+      "sha256": "5068827ef7a78714f5d8fdc15fa4f81fc711aed43c37aab9659e5724206c5540",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1978.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1979.nc",
+      "year": 1979,
+      "size_bytes": 592720595,
+      "sha256": "68c1f967376cfe6e8fa0ec29c46ea3515d60966c845ffe37d38c5895321141d1",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1979.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1980.nc",
+      "year": 1980,
+      "size_bytes": 588196030,
+      "sha256": "2f9a813d33fed6ca2d30ac23b3bf4d8fca4217c5559897eaa4c26a593a914e2d",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1980.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1981.nc",
+      "year": 1981,
+      "size_bytes": 592420877,
+      "sha256": "73d4bfdbbda6f2ee8524e21a9a7f23515a7ab778184ddfb8a4f4e4d6370c5574",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1981.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1982.nc",
+      "year": 1982,
+      "size_bytes": 595116247,
+      "sha256": "2f1e7e70201860e7920a913a4b5c5940e67fe68e265c527fd503f8b3bbdaa83c",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1982.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1983.nc",
+      "year": 1983,
+      "size_bytes": 597590273,
+      "sha256": "53e7756bddaaee69c7095732a4398f61cf9ab98659bd352205e4b17285b9da86",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1983.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1984.nc",
+      "year": 1984,
+      "size_bytes": 590286648,
+      "sha256": "c8f22e465858f2bfbfc2c8e35f060fe8ad95d2bf0becb9633733f279a349cedc",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1984.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1985.nc",
+      "year": 1985,
+      "size_bytes": 591358062,
+      "sha256": "d4cf8af38fe237433f46ca8b4e2928ae669ac4d95fd6fcb3ade3a61310ff58b3",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1985.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1986.nc",
+      "year": 1986,
+      "size_bytes": 592742779,
+      "sha256": "2ed5d2719fcc39fd3f81cf3e3c6e67662bf8b3b89783d6b02e3208d2876bf7bf",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1986.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1987.nc",
+      "year": 1987,
+      "size_bytes": 591409737,
+      "sha256": "5baeb48fd59c6be077ebb03262dd7374c4df01b78a2a57165e94109a73710ab0",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1987.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1988.nc",
+      "year": 1988,
+      "size_bytes": 588834197,
+      "sha256": "75e16c2f4a6065dcfc35e30555fc9da1abbbdde359fcdaeb7841d1375645194f",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1988.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1989.nc",
+      "year": 1989,
+      "size_bytes": 588813304,
+      "sha256": "00ee31132cf5cbde3ee7e354703bd435957849d06bfb23b22dd3de7bc2db9995",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1989.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1990.nc",
+      "year": 1990,
+      "size_bytes": 589661801,
+      "sha256": "c6e0d3c6222e3371880996b381ae6ae5a2a4bad86e7e6765c173366354120713",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1990.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1991.nc",
+      "year": 1991,
+      "size_bytes": 596541095,
+      "sha256": "d4a67ed1d5e6d6bd90ead2e382839fb44c86f2fda349ddbf84333365a68b9871",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1991.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1992.nc",
+      "year": 1992,
+      "size_bytes": 591891713,
+      "sha256": "83357a37bb722c88f364a3bc9db21445ba6a894348ff147235ff3633fce30df8",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1992.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1993.nc",
+      "year": 1993,
+      "size_bytes": 592986640,
+      "sha256": "83adc92494f6406402c94d25272f10911553270e6dafe8d55bf76485d12996cf",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1993.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1994.nc",
+      "year": 1994,
+      "size_bytes": 588035374,
+      "sha256": "63c1c1991e4b5c19d85e49076945aa689b1178973ab85af81c30dce77441cbfd",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1994.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1995.nc",
+      "year": 1995,
+      "size_bytes": 588641079,
+      "sha256": "ea681db33abee510b5eeb6e5d222fa20722af8f612ecd5b0c26811f3eeaa2448",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1995.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1996.nc",
+      "year": 1996,
+      "size_bytes": 590490200,
+      "sha256": "d8f9ec523528bfef96df37357d8eb9edd96f98e60208e26dc32b61b8ffa84e4e",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1996.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1997.nc",
+      "year": 1997,
+      "size_bytes": 594898807,
+      "sha256": "93c33102d2acf64d59b5c80d13f3f47de8f59a9c399f41c0ef47524dde1587ad",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1997.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1998.nc",
+      "year": 1998,
+      "size_bytes": 587838626,
+      "sha256": "345905bcba6e2ad4c40bd7188bf49e85ed6deb5ede2289ae4ca176ffadd5ce9e",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1998.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_1999.nc",
+      "year": 1999,
+      "size_bytes": 587529222,
+      "sha256": "091544b10c36196bb600cf63c0c3dde5d431e04de7f1f0c953555fd8a71e6936",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_1999.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2000.nc",
+      "year": 2000,
+      "size_bytes": 591339136,
+      "sha256": "e4246d358e9835026306d1d369921af33025a188500d1ab55a23a655d8794100",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2000.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2001.nc",
+      "year": 2001,
+      "size_bytes": 588163446,
+      "sha256": "ab6988dced7983cf43cbbdbd38896e3e063c7c3f91e7db1d4d6b4c2727e489f1",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2001.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2002.nc",
+      "year": 2002,
+      "size_bytes": 595008476,
+      "sha256": "037c3a45618ada0d885b2231954fac53c8656383d07d9a64cd720185174edf56",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2002.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2003.nc",
+      "year": 2003,
+      "size_bytes": 593990767,
+      "sha256": "1a1489687198ddf58e1e2938ae16a96a6b9da98f213d2349d09cb375cf4b56c3",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2003.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2004.nc",
+      "year": 2004,
+      "size_bytes": 600136043,
+      "sha256": "ceff347b5c84f03244f6a78be1eb668be3a9b09d1854b29c034203fa0cc5534e",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2004.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2005.nc",
+      "year": 2005,
+      "size_bytes": 590147334,
+      "sha256": "1a93ca159a42c1cd652f70d9e21bc9996408090ab68b42f319fafc8366fb65ef",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2005.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2006.nc",
+      "year": 2006,
+      "size_bytes": 589820137,
+      "sha256": "3b5e0a8dfc2c5aad5f3621031eea47557c630b1c67ad83f36f6de146f906d21b",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2006.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2007.nc",
+      "year": 2007,
+      "size_bytes": 594499453,
+      "sha256": "fbc5e7cb16f0416ad78349cf53cbbe2a111dc8cd76ce88c2b8b364cde8232e52",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2007.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2008.nc",
+      "year": 2008,
+      "size_bytes": 591434056,
+      "sha256": "9099077bc721e56a8ddbc0efb8b192327ee63206874845cab0eedd1ac0c4712c",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2008.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2009.nc",
+      "year": 2009,
+      "size_bytes": 593136089,
+      "sha256": "c54c8fbd479d85bcf2b6734e532c575d08e47d9fbcb73d973f52826863a31cd9",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2009.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2010.nc",
+      "year": 2010,
+      "size_bytes": 590900154,
+      "sha256": "01447b00f80a4b26ad6925eb54dce9ad5a46fe8049d41c057bc2ec6a032e1303",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2010.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2011.nc",
+      "year": 2011,
+      "size_bytes": 587218086,
+      "sha256": "4824646db94315824dfe712fde7f4976c48395af40ea0f69089e07d3a61f67b4",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2011.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2012.nc",
+      "year": 2012,
+      "size_bytes": 586062380,
+      "sha256": "1aa4b95123b737e62506e58d3d5784303da3b5b2ab2a49b57964e8a5590efe83",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2012.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2013.nc",
+      "year": 2013,
+      "size_bytes": 594361133,
+      "sha256": "e245b0fc76e074f2af9411260d2a5c6b7cc571c32b2b46bae33be6c9ce49e548",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2013.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2014.nc",
+      "year": 2014,
+      "size_bytes": 590534858,
+      "sha256": "e5a0bc4771050fa3c702a4791b373f35289b7729b76de42b01a46174bb03ad43",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2014.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2015.nc",
+      "year": 2015,
+      "size_bytes": 587132702,
+      "sha256": "053255599ce47c1bb618c872e6a9ffe66e7c378d93b49285e65b2dde29a7ec1c",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2015.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2016.nc",
+      "year": 2016,
+      "size_bytes": 592504075,
+      "sha256": "9771f2e453f65e5f162dec2b2d2803bd6888f0da7eab5e4e74ec83557da6f1cb",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2016.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2017.nc",
+      "year": 2017,
+      "size_bytes": 595058694,
+      "sha256": "43bf2603bf29cd5d5973b71e9e69b87fd2d7b43976a81010d34d39509be73514",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2017.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2018.nc",
+      "year": 2018,
+      "size_bytes": 592532944,
+      "sha256": "8879f0a11341bc78150d7036eac3709b3f84903f4fd814a7555be5e958632343",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2018.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2019.nc",
+      "year": 2019,
+      "size_bytes": 597042677,
+      "sha256": "c906ea5077c297ce2eefdf8872a3f46454c28182b9952aa3cea23fe7593024a7",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2019.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2020.nc",
+      "year": 2020,
+      "size_bytes": 587417581,
+      "sha256": "0489722e21b7bd4599dfd5972fbb80a85ee814c9e3efef478efbe68d27ac86e2",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2020.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2021.nc",
+      "year": 2021,
+      "size_bytes": 589571857,
+      "sha256": "b9407fbfc1f6afc535b9b6b70cc4d0a09f96b571a98624e112bbe79b076f6afd",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2021.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2022.nc",
+      "year": 2022,
+      "size_bytes": 587374130,
+      "sha256": "f0abdd6797d636501d472a2c73e5b320a3dc9ee5adca418c1f48ffe8f23856b7",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2022.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2023.nc",
+      "year": 2023,
+      "size_bytes": 590898762,
+      "sha256": "dbcd829616b3c77dd0a98f386391e4dd7289e9cbfa3fc4b53813fd442bef9f5a",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2023.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2024.nc",
+      "year": 2024,
+      "size_bytes": 584068831,
+      "sha256": "7b6d0cdb3003154e8a0751bb7199b617b73f1d7b90c1f463942dd0342af6a41f",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2024.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2025.nc",
+      "year": 2025,
+      "size_bytes": 592248859,
+      "sha256": "8b8de252fa6adaa7d22a853422f1cd58cc63efccbe2326c8e04037f0c972f477",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2025.nc"
+    },
+    {
+      "filename": "era5_mslp_pacifico_2026.nc",
+      "year": 2026,
+      "size_bytes": 502690238,
+      "sha256": "c69525bcaffd935e6b7bae00cf34db9826df0b009ed26f7117cecf66917e54e3",
+      "source": "data/raw/mean_sea_level_pressure/era5_mslp_pacifico_2026.nc"
+    }
+  ]
+}

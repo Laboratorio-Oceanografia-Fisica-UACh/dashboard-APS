@@ -14,8 +14,19 @@ import re
 import json
 import argparse
 import datetime
+import importlib.util
+from pathlib import Path
+
 import requests
 import numpy as np
+
+# Asegurar importación de los módulos del pipeline
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from pipeline.file_utils import is_nonempty_file, temp_path_for
+from pipeline.paths import ensure_parent_dir, resolve_project_path
 
 # Dominio geográfico de descarga GFS
 LAT_NORTH = -10
@@ -55,6 +66,26 @@ def get_pacific_coastline_lon(lat):
 NOMADS_BASE = "https://nomads.ncep.noaa.gov"
 
 
+def check_gfs_dependencies():
+    """
+    Verifica las dependencias necesarias para leer GRIB2 antes de consultar NOAA.
+    """
+    missing = [
+        name for name in ("xarray", "cfgrib", "eccodes")
+        if importlib.util.find_spec(name) is None
+    ]
+    if missing:
+        print("\n" + "=" * 70)
+        print("❌ [ERROR] Faltan dependencias para procesar GFS GRIB2: " + ", ".join(missing))
+        print("=" * 70)
+        print("Instala las dependencias con:")
+        print("  pip install -r pipeline/requirements.txt")
+        print("o directamente:")
+        print("  pip install xarray cfgrib eccodes")
+        return False
+    return True
+
+
 def get_latest_gfs_cycle():
     """
     Identifica la fecha y ciclo (00, 06, 12, 18z) más reciente y disponible en NOAA NOMADS.
@@ -76,7 +107,7 @@ def get_latest_gfs_cycle():
                 return latest_date_folder, c
         
         # Si la fecha más reciente aún no tiene subidas completas, probar con la anterior
-        prev_date_folder = dates[-2].replace("gfs.", "")
+        prev_date_folder = dates[-2].replace("gfs.", "") if len(dates) >= 2 else dates[-1].replace("gfs.", "")
         return prev_date_folder, "00"
     except Exception as e:
         print(f"[AVISO] Error consultando índice de ciclos ({e}). Usando ciclo estimado.")
@@ -94,7 +125,8 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
         print("[ERROR] Se requiere xarray y cfgrib. Ejecuta: pip install xarray cfgrib eccodes")
         sys.exit(1)
 
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     # Pasos de pronóstico: cada 24 horas hasta el día 7 (168 horas)
     forecast_hours = [0, 24, 48, 72, 96, 120, 144, 168]
     
@@ -110,7 +142,7 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
 
     for f_step in forecast_hours:
         f_str = f"{f_step:03d}"
-        target_grib = os.path.join(output_dir, f"gfs_{date_str}_{cycle_str}z_f{f_str}.grib2")
+        target_grib = output_dir / f"gfs_{date_str}_{cycle_str}z_f{f_str}.grib2"
         valid_date = (base_time + datetime.timedelta(hours=f_step)).strftime("%Y-%m-%d")
 
         url = (
@@ -122,23 +154,29 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
             f"&toplat={LAT_NORTH}&bottomlat={LAT_SOUTH}&leftlon={LON_WEST}&rightlon={LON_EAST}"
         )
 
-        # Descargar si no existe
-        if not os.path.exists(target_grib):
+        # Descargar solo si no existe un GRIB válido (no vacío)
+        if not is_nonempty_file(target_grib):
+            temp_grib = temp_path_for(target_grib)
             try:
                 res = requests.get(url, timeout=20)
-                if res.status_code == 200 and len(res.content) > 1000:
-                    with open(target_grib, "wb") as f:
-                        f.write(res.content)
+                # Todo archivo GRIB2 válido comienza con la firma b"GRIB"
+                if res.status_code == 200 and len(res.content) > 1000 and res.content.startswith(b"GRIB"):
+                    temp_grib.write_bytes(res.content)
+                    os.replace(temp_grib, target_grib)
                 else:
-                    print(f"⚠️  Paso f{f_str} no disponible (código {res.status_code}).")
+                    if temp_grib.exists():
+                        temp_grib.unlink()
+                    print(f"⚠️  Paso f{f_str} no disponible o respuesta no válida (código {res.status_code}).")
                     continue
             except Exception as e:
+                if temp_grib.exists():
+                    temp_grib.unlink()
                 print(f"⚠️  Error de red descargando f{f_str}: {e}")
                 continue
 
         # Procesar GRIB con xarray y detectar centro del APS
         try:
-            with xr.open_dataset(target_grib, engine="cfgrib") as ds:
+            with xr.open_dataset(os.fspath(target_grib), engine="cfgrib") as ds:
                 p_var = ds["prmsl"] / 100.0  # Pascales a hPa
                 lats = ds["latitude"].values
                 lons = ds["longitude"].values
@@ -170,6 +208,9 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
                 print(f"  + Pronóstico +{f_step}h ({valid_date}): PSA={max_p} hPa, Centro: {lat_c}°S, {lon_c}°W")
 
         except Exception as e:
+            # Si falla la apertura, eliminar el archivo corrupto para permitir reintento limpio
+            if target_grib.exists():
+                target_grib.unlink()
             print(f"⚠️  Error procesando GRIB f{f_str}: {e}")
 
     return forecast_results
@@ -177,24 +218,40 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Descargador de pronóstico NOAA GFS para el APS")
-    parser.add_argument("--output-json", type=str, default="data/processed/gfs_forecast_aps.json", help="Ruta del JSON con el pronóstico")
-    parser.add_argument("--temp-dir", type=str, default="data/temp/gfs", help="Directorio temporal para archivos GRIB2")
+    parser.add_argument("--output-json", type=str, default="data/processed/gfs_forecast_aps.json",
+                        help="Ruta del JSON con el pronóstico. Las rutas relativas se resuelven desde la raíz del proyecto")
+    parser.add_argument("--temp-dir", type=str, default="data/temp/gfs",
+                        help="Directorio temporal para archivos GRIB2. Las rutas relativas se resuelven desde la raíz del proyecto")
     
     args = parser.parse_args()
 
+    if not check_gfs_dependencies():
+        sys.exit(1)
+
+    output_json = resolve_project_path(args.output_json)
+    temp_dir = resolve_project_path(args.temp_dir)
+
     date_str, cycle_str = get_latest_gfs_cycle()
-    forecast = fetch_gfs_forecast_steps(date_str, cycle_str, args.temp_dir)
+    forecast = fetch_gfs_forecast_steps(date_str, cycle_str, temp_dir)
 
     if forecast["dates"]:
-        os.makedirs(os.path.dirname(args.output_json), exist_ok=True)
-        with open(args.output_json, "w", encoding="utf-8") as f:
-            json.dump({
-                "model_id": "noaa_gfs_forecast",
-                "model_name": "NOAA GFS (Pronóstico Operativo 7 Días)",
-                "cycle": f"{date_str} {cycle_str}Z",
-                "forecast": forecast
-            }, f, indent=2)
-        print(f"\n✅ [ÉXITO] Pronóstico GFS a 7 días guardado en: {args.output_json}")
+        ensure_parent_dir(output_json)
+        temp_json = temp_path_for(output_json)
+        try:
+            with open(temp_json, "w", encoding="utf-8") as f:
+                json.dump({
+                    "model_id": "noaa_gfs_forecast",
+                    "model_name": "NOAA GFS (Pronóstico Operativo 7 Días)",
+                    "cycle": f"{date_str} {cycle_str}Z",
+                    "forecast": forecast
+                }, f, indent=2)
+            os.replace(temp_json, output_json)
+        except Exception as e:
+            if temp_json.exists():
+                temp_json.unlink()
+            print(f"[ERROR] No se pudo guardar el JSON del pronóstico: {e}")
+            sys.exit(1)
+        print(f"\n✅ [ÉXITO] Pronóstico GFS a 7 días guardado en: {output_json}")
     else:
         print("[ERROR] No se pudo compilar el pronóstico de GFS.")
 

@@ -16,6 +16,8 @@ Valida:
 import os
 import sys
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
@@ -38,6 +40,8 @@ from pipeline.calculate_aps_metrics import (
     compute_decoupling_vector,
     compute_patagonia_box_pressure
 )
+
+from pipeline.paths import PROJECT_ROOT, resolve_project_path
 
 
 class TestAPSPhysics(unittest.TestCase):
@@ -200,6 +204,53 @@ class TestAPSPhysics(unittest.TestCase):
         # En tierra firme debe ser NaN
         land_val = smoothed[60, -1]  # Chile continental / Argentina
         self.assertTrue(np.isnan(land_val), "Puntos en tierra deben ser NaN estrictos")
+
+
+class TestRutasNAS(unittest.TestCase):
+    """
+    Pruebas de resolución de rutas con APS_DATA_ROOT para la Fase 5.
+    """
+
+    def test_ruta_absoluta_no_se_modifica(self):
+        """
+        Una ruta absoluta debe conservarse aunque APS_DATA_ROOT esté definida.
+        """
+        with patch.dict(os.environ, {"APS_DATA_ROOT": "/mnt/nas/aps"}):
+            self.assertEqual(
+                resolve_project_path("/mnt/nas/aps/raw/mean_sea_level_pressure"),
+                Path("/mnt/nas/aps/raw/mean_sea_level_pressure")
+            )
+
+    def test_ruta_data_se_resuelve_contra_aps_data_root(self):
+        """
+        Las rutas data/... se redirigen a la raíz externa cuando está definida.
+        """
+        with patch.dict(os.environ, {"APS_DATA_ROOT": "/mnt/nas/aps"}):
+            self.assertEqual(
+                resolve_project_path("data/raw/mean_sea_level_pressure"),
+                Path("/mnt/nas/aps/data/raw/mean_sea_level_pressure")
+            )
+
+    def test_ruta_web_no_se_redirige_a_aps_data_root(self):
+        """
+        Las rutas web/... permanecen dentro del proyecto aunque exista APS_DATA_ROOT.
+        """
+        with patch.dict(os.environ, {"APS_DATA_ROOT": "/mnt/nas/aps"}):
+            self.assertEqual(
+                resolve_project_path("web/data/latest_aps_data.json"),
+                PROJECT_ROOT / "web/data/latest_aps_data.json"
+            )
+
+    def test_sin_aps_data_root_se_usa_raiz_del_proyecto(self):
+        """
+        Sin la variable de entorno, toda ruta relativa usa PROJECT_ROOT.
+        """
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("APS_DATA_ROOT", None)
+            self.assertEqual(
+                resolve_project_path("data/processed/era5_daily_aps_metrics.csv"),
+                PROJECT_ROOT / "data/processed/era5_daily_aps_metrics.csv"
+            )
 
 
 if __name__ == "__main__":

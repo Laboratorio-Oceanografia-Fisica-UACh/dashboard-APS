@@ -1,0 +1,321 @@
+# Sincronización NAS -> GitHub Actions y reproceso de métricas ERA5.
+# Fase 5B del plan de automatización: conexión opcional y manual al archivo
+# histórico del NAS por Tailscale. Los workflows diario y mensual NO dependen
+# de este archivo: si el NAS no responde, la operación cotidiana continúa.
+# Laboratorio de Oceanografía Física (LOFA) - Universidad Austral de Chile (UACh).
+
+name: Sincronización NAS y reproceso ERA5
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_year:
+        description: "Primer año a sincronizar y reprocesar (AAAA)"
+        required: true
+        default: "1994"
+      end_year:
+        description: "Último año a sincronizar y reprocesar (AAAA)"
+        required: true
+        default: "2026"
+      dry_run:
+        description: "Dry-run: solo listar la transferencia (no copia, no reprocesa, no commitea)"
+        type: boolean
+        default: true
+      force_recompute:
+        description: "Forzar reproceso de años ya presentes en la caché (se preservan los años fuera del rango)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aps-data-update
+  cancel-in-progress: false
+
+env:
+  NAS_HOST: ${{ secrets.NAS_HOST }}
+  NAS_USER: ${{ secrets.NAS_USER }}
+  NAS_DATA_ROOT: ${{ secrets.NAS_DATA_ROOT }}
+
+jobs:
+  sync-reprocess:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Unirse a la tailnet de Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags: tag:github-actions
+
+      - name: Configurar entorno Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Instalar dependencias científicas
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pipeline/requirements.txt
+
+      - name: Configurar clave SSH del NAS
+        env:
+          NAS_SSH_KEY: ${{ secrets.NAS_SSH_KEY }}
+          NAS_KNOWN_HOSTS: ${{ secrets.NAS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          umask 077
+          printf '%s\n' "$NAS_SSH_KEY" > ~/.ssh/id_ed25519_nas
+          chmod 600 ~/.ssh/id_ed25519_nas
+          printf '%s\n' "$NAS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Calcular el conjunto de años a sincronizar
+        env:
+          START_YEAR: ${{ inputs.start_year }}
+          END_YEAR: ${{ inputs.end_year }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv
+          import os
+
+          start = int(os.environ["START_YEAR"])
+          end = int(os.environ["END_YEAR"])
+          if start > end:
+              raise SystemExit("start_year es mayor que end_year")
+          if os.environ.get("DRY_RUN") != "true" and (end - start + 1) > 10:
+              print(f"::warning::Rango de {end - start + 1} años en modo real; el runner puede quedarse sin disco o tiempo. Use tramos de 5–10 años.")
+          years = list(range(start, end + 1))
+          path = "data/processed/era5_daily_aps_metrics.csv"
+          if os.path.exists(path):
+              with open(path, newline="", encoding="utf-8") as f:
+                  mx = max(int(row["year"]) for row in csv.DictReader(f))
+              if mx not in years:
+                  years.append(mx)
+                  years.sort()
+                  print(f"Aviso: se añade el año {mx} de la caché para conservar la rejilla espacial coherente.")
+          with open("/tmp/sync_years.txt", "w", encoding="utf-8") as f:
+              f.write("\n".join(map(str, years)))
+          print(f"Años a sincronizar ({len(years)}): {years[0]}–{years[-1]}")
+          PY
+
+      - name: Transferir NetCDF desde el NAS (rsync)
+        run: |
+          set -euo pipefail
+          mapfile -t YEARS < /tmp/sync_years.txt
+          INCLUDES=(--include='/mean_sea_level_pressure/')
+          for y in "${YEARS[@]}"; do
+            INCLUDES+=(--include="/mean_sea_level_pressure/era5_mslp_pacifico_${y}.nc")
+          done
+          SSH_CMD="ssh -i $HOME/.ssh/id_ed25519_nas -o IdentitiesOnly=yes -o BatchMode=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=4"
+          DRY_ARGS=()
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY_ARGS+=(--dry-run)
+          fi
+          mkdir -p data/raw
+          set -o pipefail
+          rsync -avh --partial --append-verify "${DRY_ARGS[@]}" \
+            -e "$SSH_CMD" \
+            "${INCLUDES[@]}" \
+            --exclude='*' \
+            "$NAS_USER@$NAS_HOST:$NAS_DATA_ROOT/" \
+            data/raw/ 2>&1 | tee rsync_nas.log
+
+      - name: Validar que el dry-run liste NetCDF
+        if: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if ! grep -Eq 'era5_mslp_pacifico_[0-9]{4}\.nc' rsync_nas.log; then
+            echo "::error::El dry-run no listó ningún NetCDF. Revise el comando forzado de ~/.ssh/authorized_keys: el path debe terminar en '/' y coincidir con NAS_DATA_ROOT/."
+            echo "--- Últimas líneas del log de rsync ---"
+            tail -20 rsync_nas.log || true
+            exit 1
+          fi
+          echo "Dry-run OK: se listaron archivos ERA5 del NAS."
+
+      - name: Verificar archivos recibidos y checksums SHA-256
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+
+          years = [int(y) for y in open("/tmp/sync_years.txt", encoding="utf-8") if y.strip()]
+          missing = [
+              y for y in years
+              if not os.path.exists(f"data/raw/mean_sea_level_pressure/era5_mslp_pacifico_{y}.nc")
+              or os.path.getsize(f"data/raw/mean_sea_level_pressure/era5_mslp_pacifico_{y}.nc") == 0
+          ]
+          if missing:
+              print(f"::error::NetCDF ausentes en el NAS para los años: {missing}")
+              sys.exit(1)
+          man_path = "data/processed/era5_raw_manifest.json"
+          if not os.path.exists(man_path):
+              print("::warning::Manifiesto era5_raw_manifest.json no disponible; se omite la verificación SHA-256.")
+              sys.exit(0)
+          with open(man_path, encoding="utf-8") as f:
+              entries = {e["filename"]: e for e in json.load(f)["files"]}
+          bad = []
+          for y in years:
+              fn = f"era5_mslp_pacifico_{y}.nc"
+              ent = entries.get(fn)
+              if ent is None:
+                  print(f"::warning::{fn} no está en el manifiesto; se omite su verificación.")
+                  continue
+              h = hashlib.sha256()
+              with open(f"data/raw/mean_sea_level_pressure/{fn}", "rb") as fh:
+                  for chunk in iter(lambda: fh.read(8 << 20), b""):
+                      h.update(chunk)
+              if h.hexdigest() != ent["sha256"]:
+                  bad.append(fn)
+          if bad:
+              print(f"::error::Checksum SHA-256 incorrecto en: {bad}")
+              sys.exit(1)
+          print("Verificación SHA-256 correcta para todos los archivos sincronizados.")
+          PY
+
+      - name: Reprocesar métricas V5.3
+        if: ${{ !inputs.dry_run }}
+        env:
+          START_YEAR: ${{ inputs.start_year }}
+          END_YEAR: ${{ inputs.end_year }}
+          FORCE: ${{ inputs.force_recompute }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/temp
+          if [ "$FORCE" = "true" ]; then
+            echo "Modo fuerza: se respalda la caché, se reprocesa el rango y se fusiona sin perder años externos."
+            if [ -f data/processed/era5_daily_aps_metrics.csv ]; then
+              cp data/processed/era5_daily_aps_metrics.csv data/temp/cache_era5_backup.csv
+            fi
+            python pipeline/calculate_aps_metrics.py \
+              --input-dir data/raw/mean_sea_level_pressure \
+              --start-year "$START_YEAR" \
+              --end-year "$END_YEAR" \
+              --recompute-all
+            python - <<'PY'
+          import os
+
+          import pandas as pd
+
+          start = int(os.environ["START_YEAR"])
+          end = int(os.environ["END_YEAR"])
+          cache = "data/processed/era5_daily_aps_metrics.csv"
+          backup = "data/temp/cache_era5_backup.csv"
+          new = pd.read_csv(cache)
+          if os.path.exists(backup):
+              old = pd.read_csv(backup)
+              in_range = old[(old["year"] >= start) & (old["year"] <= end)]
+              out_range = old[~old["year"].between(start, end)]
+              processed_years = set(new["year"].unique())
+              lost = sorted(set(in_range["year"].unique()) - processed_years)
+              keep_in = in_range[in_range["year"].isin(lost)] if lost else in_range.iloc[0:0]
+              if lost:
+                  print(f"Aviso: años del rango sin NetCDF nuevo, se conservan de la caché: {lost}")
+              merged = pd.concat([out_range, keep_in, new], ignore_index=True)
+          else:
+              merged = new
+          merged = merged.drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
+          tmp = cache + ".tmp"
+          merged.to_csv(tmp, index=False)
+          os.replace(tmp, cache)
+          print(f"Caché fusionada: {len(merged)} días ({int(merged['year'].min())}–{int(merged['year'].max())}).")
+          PY
+            # Segunda pasada sin --recompute-all: reconstruye JSON y CSV web
+            # a partir de la caché completa ya fusionada.
+            python pipeline/calculate_aps_metrics.py \
+              --input-dir data/raw/mean_sea_level_pressure
+          else
+            python pipeline/calculate_aps_metrics.py \
+              --input-dir data/raw/mean_sea_level_pressure \
+              --start-year "$START_YEAR" \
+              --end-year "$END_YEAR"
+          fi
+
+      - name: Commit y push de salidas procesadas
+        id: commit
+        if: ${{ !inputs.dry_run }}
+        env:
+          START_YEAR: ${{ inputs.start_year }}
+          END_YEAR: ${{ inputs.end_year }}
+        run: |
+          set -euo pipefail
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action Bot - LOFA"
+          git add -- \
+            data/processed/era5_daily_aps_metrics.csv \
+            data/processed/latest_aps_data.json \
+            web/data/latest_aps_data.json \
+            web/data/era5_daily_aps_metrics.csv \
+            web/data/aps_multimodel_metrics_lofa.csv
+          if git diff --cached --name-only | grep -E '\.(nc|nc4|grib2?)$'; then
+            echo "::error::Se intentó versionar datos crudos; abortando."
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Sin cambios en las salidas procesadas."
+          else
+            git commit -m "Reproceso ERA5 desde NAS (${START_YEAR}-${END_YEAR}) [skip ci]"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Salidas procesadas commiteadas y empujadas."
+          fi
+
+      - name: Registrar log de rsync como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsync-nas-log
+          path: rsync_nas.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Retirar credenciales SSH del runner
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519_nas
+
+  deploy-pages:
+    needs: sync-reprocess
+    if: needs.sync-reprocess.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout de la rama actual
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto de la web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "web"
+
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

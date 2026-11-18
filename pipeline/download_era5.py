@@ -16,17 +16,11 @@ from pathlib import Path
 # Así, ejecutar `python pipeline/download_era5.py` desde cualquier carpeta
 # siempre apunta a la estructura real del repositorio.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-
-def resolve_output_dir(output_dir):
-    """
-    Resuelve el directorio de destino. Las rutas relativas se interpretan
-    respecto a la raíz del proyecto, nunca respecto al directorio actual.
-    """
-    path = Path(output_dir).expanduser()
-    if not path.is_absolute():
-        path = PROJECT_ROOT / path
-    return path
+from pipeline.file_utils import is_nonempty_file, temp_path_for
+from pipeline.paths import resolve_project_path
 
 
 def year_filepath(output_dir, year):
@@ -39,21 +33,21 @@ def is_already_downloaded(filepath):
     Considera descargado un año solo si el archivo existe y tiene contenido.
     Un archivo vacío se trata como incompleto y se vuelve a solicitar.
     """
-    try:
-        return filepath.is_file() and filepath.stat().st_size > 0
-    except OSError:
-        return False
+    return is_nonempty_file(filepath)
 
 
 def check_cds_credentials():
     """
-    Verifica que el usuario tenga configurado el archivo ~/.cdsapirc
-    necesario para autenticarse con la API de Copernicus.
+    Verifica que el usuario tenga configurado ~/.cdsapirc o las variables de entorno CDSAPI_URL y CDSAPI_KEY.
     """
     cdsapirc_path = Path.home() / ".cdsapirc"
-    if not cdsapirc_path.exists():
+    has_file = cdsapirc_path.exists() or Path(os.environ.get("CDSAPI_RC", "")).exists()
+    has_env = bool(os.environ.get("CDSAPI_KEY") and os.environ.get("CDSAPI_URL"))
+
+    if not (has_file or has_env):
         print("\n" + "=" * 70)
-        print("❌ [ERROR DE AUTENTICACIÓN] No se encontró el archivo de credenciales ~/.cdsapirc")
+        print("❌ [ERROR DE AUTENTICACIÓN] No se encontraron credenciales de Copernicus CDS.")
+        print("   Configura ~/.cdsapirc o define las variables de entorno CDSAPI_URL y CDSAPI_KEY.")
         print("=" * 70)
         return False
     return True
@@ -110,7 +104,7 @@ def download_era5_mslp(years, months, output_dir, synoptic_only=False):
 
         # Archivo temporal: la descarga nunca escribe directamente sobre el NetCDF final.
         # Si falla, el archivo final previo (si existiera) queda intacto.
-        temp_filepath = output_dir / f".{nc_filepath.name}.{os.getpid()}.part"
+        temp_filepath = temp_path_for(nc_filepath)
 
         print("\n" + "=" * 60)
         print(f"🌊 [ERA5] Solicitando datos horarios para el año: {year}")
@@ -198,7 +192,7 @@ def main():
         print("❌ [ERROR] No se definió ningún año para descargar.")
         return
 
-    output_dir = resolve_output_dir(args.output_dir)
+    output_dir = resolve_project_path(args.output_dir)
 
     # Verificar qué años ya existen ANTES de solicitar nada a Copernicus.
     years_missing = [

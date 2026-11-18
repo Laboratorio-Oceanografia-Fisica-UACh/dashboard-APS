@@ -14,13 +14,21 @@ Versión 4.0:
 
 import os
 import sys
-import glob
 import argparse
-import datetime
+from pathlib import Path
+
 import requests
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter
+
+# Asegurar importación de los módulos del pipeline
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from pipeline.file_utils import is_nonempty_file, temp_path_for
+from pipeline.paths import ensure_parent_dir, resolve_project_path
 
 # Dominio geográfico extendido del APS (LOFA UACh)
 LAT_NORTH = -10.0
@@ -61,12 +69,14 @@ def get_pacific_coastline_lon(lat):
 def download_ncep_year(year, output_dir):
     """
     Descarga el archivo NetCDF anual de Sea Level Pressure de NCEP/NCAR desde NOAA PSL.
+    Nunca sobrescribe archivos válidos y escribe primero en un temporal.
     """
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     filename = f"slp.{year}.nc"
-    target_path = os.path.join(output_dir, filename)
+    target_path = output_dir / filename
 
-    if os.path.exists(target_path):
+    if is_nonempty_file(target_path):
         print(f"⏩ [SALTANDO] {filename} ya existe en {output_dir}")
         return target_path
 
@@ -74,21 +84,29 @@ def download_ncep_year(year, output_dir):
     print(f"\n📡 [NOAA NCEP/NCAR] Descargando año {year} desde NOAA PSL...")
     print(f"   URL: {url}")
 
+    temp_path = temp_path_for(target_path)
     try:
-        res = requests.get(url, stream=True, timeout=60)
-        if res.status_code == 200:
+        with requests.get(url, stream=True, timeout=60) as res:
+            if res.status_code != 200:
+                print(f"⚠️ [AVISO] Año {year} no disponible en NOAA PSL (código HTTP {res.status_code}).")
+                return None
+
             total_bytes = 0
-            with open(target_path, "wb") as f:
+            with open(temp_path, "wb") as f:
                 for chunk in res.iter_content(chunk_size=1024 * 1024):
                     if chunk:
                         f.write(chunk)
                         total_bytes += len(chunk)
-            print(f"✅ [ÉXITO] {filename} descargado ({total_bytes / (1024*1024):.1f} MB): {target_path}")
-            return target_path
-        else:
-            print(f"⚠️ [AVISO] Año {year} no disponible en NOAA PSL (código HTTP {res.status_code}).")
-            return None
+
+        if total_bytes <= 0:
+            raise RuntimeError("la descarga generó un archivo vacío")
+
+        os.replace(temp_path, target_path)
+        print(f"✅ [ÉXITO] {filename} descargado ({total_bytes / (1024*1024):.1f} MB): {target_path}")
+        return target_path
     except Exception as e:
+        if temp_path.exists():
+            temp_path.unlink()
         print(f"❌ [ERROR] Falló la descarga de {year}: {e}")
         return None
 
@@ -104,8 +122,7 @@ def process_ncep_files(input_dir, output_csv):
         print("[ERROR] Falta instalar xarray. Ejecuta: pip install xarray netcdf4")
         sys.exit(1)
 
-    nc_files = glob.glob(os.path.join(input_dir, "slp.*.nc"))
-    nc_files.sort()
+    nc_files = sorted(str(p) for p in Path(input_dir).glob("slp.*.nc"))
 
     if not nc_files:
         print(f"[AVISO] No se encontraron archivos slp.*.nc en {input_dir}")
@@ -176,8 +193,17 @@ def process_ncep_files(input_dir, output_csv):
 
     if rows:
         df = pd.DataFrame(rows).drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
-        os.makedirs(os.path.dirname(output_csv), exist_ok=True)
-        df.to_csv(output_csv, index=False)
+        output_csv = Path(output_csv)
+        ensure_parent_dir(output_csv)
+        temp_csv = temp_path_for(output_csv)
+        try:
+            df.to_csv(temp_csv, index=False)
+            os.replace(temp_csv, output_csv)
+        except Exception as e:
+            if temp_csv.exists():
+                temp_csv.unlink()
+            print(f"❌ [ERROR] No se pudo guardar el CSV {output_csv}: {e}")
+            return None
         print(f"✅ [ÉXITO] Serie histórica de NCEP/NCAR procesada ({len(df)} días) en: {output_csv}")
         return df
     return None
@@ -186,21 +212,29 @@ def process_ncep_files(input_dir, output_csv):
 def main():
     parser = argparse.ArgumentParser(description="Descargador de Reanálisis NCEP/NCAR (NOAA PSL) para el APS")
     parser.add_argument("--start-year", type=int, default=1948, help="Año inicial (mínimo: 1948)")
-    parser.add_argument("--end-year", type=int, default=1972, help="Año final homólogo")
+    parser.add_argument("--end-year", type=int, default=2026, help="Año final homólogo")
     parser.add_argument("--years", nargs="+", help="Años específicos (ej: --years 2022 2023)")
-    parser.add_argument("--output-dir", type=str, default="data/raw/ncep_reanalysis", help="Directorio de destino")
-    parser.add_argument("--output-csv", type=str, default="data/processed/ncep_daily_aps_metrics.csv", help="Ruta del CSV procesado")
+    parser.add_argument("--output-dir", type=str, default="data/raw/ncep_reanalysis",
+                        help="Directorio de destino. Las rutas relativas se resuelven desde la raíz del proyecto")
+    parser.add_argument("--output-csv", type=str, default="data/processed/ncep_daily_aps_metrics.csv",
+                        help="Ruta del CSV procesado. Las rutas relativas se resuelven desde la raíz del proyecto")
     parser.add_argument("--process-only", action="store_true", help="Solo procesar archivos locales existentes sin descargar")
 
     args = parser.parse_args()
 
+    output_dir = resolve_project_path(args.output_dir)
+    output_csv = resolve_project_path(args.output_csv)
+
     if not args.process_only:
         years_to_get = [int(y) for y in args.years] if args.years else list(range(args.start_year, args.end_year + 1))
+        if not years_to_get:
+            print("❌ [ERROR] No se definió ningún año para descargar.")
+            return
         print(f"📋 Descargando {len(years_to_get)} años de NCEP/NCAR ({years_to_get[0]} a {years_to_get[-1]})...")
         for y in years_to_get:
-            download_ncep_year(y, args.output_dir)
+            download_ncep_year(y, output_dir)
 
-    process_ncep_files(args.output_dir, args.output_csv)
+    process_ncep_files(output_dir, output_csv)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,562 @@
+{
+  "dataset": "ncep",
+  "generated_at": "2026-11-17T07:09:22.451715+00:00",
+  "source_dir": "data/raw/ncep_reanalysis",
+  "file_count": 79,
+  "total_bytes": 1514051220,
+  "files": [
+    {
+      "filename": "slp.1948.nc",
+      "year": 1948,
+      "size_bytes": 19258127,
+      "sha256": "88c4d27c42b2811dccaf4ebd8216729a1b8c5526fd640c3b1a3b6a111842753b",
+      "source": "data/raw/ncep_reanalysis/slp.1948.nc"
+    },
+    {
+      "filename": "slp.1949.nc",
+      "year": 1949,
+      "size_bytes": 19323936,
+      "sha256": "70cbdab1ad623de89950aa2ae1d49c3fa472b8810730493c139aaaf57f5cf555",
+      "source": "data/raw/ncep_reanalysis/slp.1949.nc"
+    },
+    {
+      "filename": "slp.1950.nc",
+      "year": 1950,
+      "size_bytes": 19326568,
+      "sha256": "d8b906a2f9eb7bd6d90b3c6711ad19996b169e4c147e2d1e370826bbcbfb704a",
+      "source": "data/raw/ncep_reanalysis/slp.1950.nc"
+    },
+    {
+      "filename": "slp.1951.nc",
+      "year": 1951,
+      "size_bytes": 19297858,
+      "sha256": "cb9a27d576ebdca253ee5dd80228483c04cb19966767ada462fdbf125ba3783e",
+      "source": "data/raw/ncep_reanalysis/slp.1951.nc"
+    },
+    {
+      "filename": "slp.1952.nc",
+      "year": 1952,
+      "size_bytes": 19368491,
+      "sha256": "c26159afc12bba744c67abb8b137cc54b7d7edd87abc6848194b2211fdcee599",
+      "source": "data/raw/ncep_reanalysis/slp.1952.nc"
+    },
+    {
+      "filename": "slp.1953.nc",
+      "year": 1953,
+      "size_bytes": 19318115,
+      "sha256": "2cb81a3fe938f2d909fc20ecf9296fef153041674acdc15d68b1fa933f74c904",
+      "source": "data/raw/ncep_reanalysis/slp.1953.nc"
+    },
+    {
+      "filename": "slp.1954.nc",
+      "year": 1954,
+      "size_bytes": 19330682,
+      "sha256": "a40e5b142d300816e21e548ff6566ee405504826e8c245bde3e2b9c41597d1c4",
+      "source": "data/raw/ncep_reanalysis/slp.1954.nc"
+    },
+    {
+      "filename": "slp.1955.nc",
+      "year": 1955,
+      "size_bytes": 19366596,
+      "sha256": "539b3f0f35168664f441dd0e552d90802058ae0cce7a13011e314733b6d25f48",
+      "source": "data/raw/ncep_reanalysis/slp.1955.nc"
+    },
+    {
+      "filename": "slp.1956.nc",
+      "year": 1956,
+      "size_bytes": 19418435,
+      "sha256": "b220be463f85d90192cb3e1603342fea1e59d0f4625ea11b6249165b457aea40",
+      "source": "data/raw/ncep_reanalysis/slp.1956.nc"
+    },
+    {
+      "filename": "slp.1957.nc",
+      "year": 1957,
+      "size_bytes": 19320199,
+      "sha256": "283f434dde987cf9d9ede25ec9fab4109de49e2756297cca066aaa5f762fb8ab",
+      "source": "data/raw/ncep_reanalysis/slp.1957.nc"
+    },
+    {
+      "filename": "slp.1958.nc",
+      "year": 1958,
+      "size_bytes": 19315828,
+      "sha256": "c0b48adb0e47e0fd289073367fc7eae3861809e144afc57566538249972bd800",
+      "source": "data/raw/ncep_reanalysis/slp.1958.nc"
+    },
+    {
+      "filename": "slp.1959.nc",
+      "year": 1959,
+      "size_bytes": 19346994,
+      "sha256": "142f72a868564fff32e8837888535eab48dfc9dd97b2ce360f734211a8fa1e37",
+      "source": "data/raw/ncep_reanalysis/slp.1959.nc"
+    },
+    {
+      "filename": "slp.1960.nc",
+      "year": 1960,
+      "size_bytes": 19391235,
+      "sha256": "097ac8fc957e3b3f1d9d2519bf6128b5477684bb187c1752cb63a9eb5822ff52",
+      "source": "data/raw/ncep_reanalysis/slp.1960.nc"
+    },
+    {
+      "filename": "slp.1961.nc",
+      "year": 1961,
+      "size_bytes": 19327648,
+      "sha256": "d44175ff403b1c836132b64d8b9df334b23858832604d29bc8959e5620685c18",
+      "source": "data/raw/ncep_reanalysis/slp.1961.nc"
+    },
+    {
+      "filename": "slp.1962.nc",
+      "year": 1962,
+      "size_bytes": 19323856,
+      "sha256": "70f81aabe43f110a8c0290c5b459ce04d88a2ce95c12bc8d0092fae066f1ffaf",
+      "source": "data/raw/ncep_reanalysis/slp.1962.nc"
+    },
+    {
+      "filename": "slp.1963.nc",
+      "year": 1963,
+      "size_bytes": 19289174,
+      "sha256": "d58c8f68c656a3c3aa5e3d2ddd691a3d764cdf0d629e2d8c491cf98efe205c73",
+      "source": "data/raw/ncep_reanalysis/slp.1963.nc"
+    },
+    {
+      "filename": "slp.1964.nc",
+      "year": 1964,
+      "size_bytes": 19383173,
+      "sha256": "8ae2ee72035e4ee139a228002d7f795c743baf7f15ac03ad36a9a244c4aba53f",
+      "source": "data/raw/ncep_reanalysis/slp.1964.nc"
+    },
+    {
+      "filename": "slp.1965.nc",
+      "year": 1965,
+      "size_bytes": 19310549,
+      "sha256": "e3f253c0364d982f1dc31cb1c3646376abdfd88e19d0478767e4fe78a8fb78c8",
+      "source": "data/raw/ncep_reanalysis/slp.1965.nc"
+    },
+    {
+      "filename": "slp.1966.nc",
+      "year": 1966,
+      "size_bytes": 19305347,
+      "sha256": "68abe0462bb6c95de17521d73d105bda4f0144afad3a0e0f5764504d6882f2eb",
+      "source": "data/raw/ncep_reanalysis/slp.1966.nc"
+    },
+    {
+      "filename": "slp.1967.nc",
+      "year": 1967,
+      "size_bytes": 19327153,
+      "sha256": "d4d1043afba2083bbf07a4f4f0772308cabe52db083fa6596409c565f2562da9",
+      "source": "data/raw/ncep_reanalysis/slp.1967.nc"
+    },
+    {
+      "filename": "slp.1968.nc",
+      "year": 1968,
+      "size_bytes": 19356613,
+      "sha256": "5c18ae2f9c7e7901024603c616be127c241b4eed7bd9f4ecec7ea0e5a0ac348b",
+      "source": "data/raw/ncep_reanalysis/slp.1968.nc"
+    },
+    {
+      "filename": "slp.1969.nc",
+      "year": 1969,
+      "size_bytes": 19296237,
+      "sha256": "a16f09d21708977daaf5a8e2f31fd5424657ef862ec86b552c2573799e024946",
+      "source": "data/raw/ncep_reanalysis/slp.1969.nc"
+    },
+    {
+      "filename": "slp.1970.nc",
+      "year": 1970,
+      "size_bytes": 19315304,
+      "sha256": "61aad5cabba61edbd65f763410d4fb058016e535313caff836e533b2e1740d58",
+      "source": "data/raw/ncep_reanalysis/slp.1970.nc"
+    },
+    {
+      "filename": "slp.1971.nc",
+      "year": 1971,
+      "size_bytes": 19305472,
+      "sha256": "39f47bc9bb78474e4811b910fef7483a15e78322890c178d4f3f0f251932c60b",
+      "source": "data/raw/ncep_reanalysis/slp.1971.nc"
+    },
+    {
+      "filename": "slp.1972.nc",
+      "year": 1972,
+      "size_bytes": 19354986,
+      "sha256": "36b016ff06d8812920590de729b01c6a669782a470738909b3a44f8947896f0d",
+      "source": "data/raw/ncep_reanalysis/slp.1972.nc"
+    },
+    {
+      "filename": "slp.1973.nc",
+      "year": 1973,
+      "size_bytes": 19320412,
+      "sha256": "0cb8cb3cba52bbdce7c04a19281b7d527caf3cd6f9ad49d60353f30bfe58445b",
+      "source": "data/raw/ncep_reanalysis/slp.1973.nc"
+    },
+    {
+      "filename": "slp.1974.nc",
+      "year": 1974,
+      "size_bytes": 19315759,
+      "sha256": "9ec015e0a52eae4bb6b14bde035d0a04d4b2c654cf5b5665702b063bfee3f01a",
+      "source": "data/raw/ncep_reanalysis/slp.1974.nc"
+    },
+    {
+      "filename": "slp.1975.nc",
+      "year": 1975,
+      "size_bytes": 19290184,
+      "sha256": "f42c4968b5f00e05ada7b3dd648c94aa73ec8f97764611a846c3e48c01189c48",
+      "source": "data/raw/ncep_reanalysis/slp.1975.nc"
+    },
+    {
+      "filename": "slp.1976.nc",
+      "year": 1976,
+      "size_bytes": 19311320,
+      "sha256": "0fff85882bdf5bd41f09e9d34f13767ece49427ad7a3df0fe405440c6dbf0d04",
+      "source": "data/raw/ncep_reanalysis/slp.1976.nc"
+    },
+    {
+      "filename": "slp.1977.nc",
+      "year": 1977,
+      "size_bytes": 19229925,
+      "sha256": "44098fe71f5649b5b41cea253c9e4a08df9e29b507dfec45780025e87ac29c65",
+      "source": "data/raw/ncep_reanalysis/slp.1977.nc"
+    },
+    {
+      "filename": "slp.1978.nc",
+      "year": 1978,
+      "size_bytes": 19245132,
+      "sha256": "2eb90a4b00025a2d9913e59ccf823d1d07094b5a752a3d733e295006c915c1e1",
+      "source": "data/raw/ncep_reanalysis/slp.1978.nc"
+    },
+    {
+      "filename": "slp.1979.nc",
+      "year": 1979,
+      "size_bytes": 19286253,
+      "sha256": "8342b8b14e9acd2a547713f06b8c9361b1f2a83ad412bea9fa2032a98e776054",
+      "source": "data/raw/ncep_reanalysis/slp.1979.nc"
+    },
+    {
+      "filename": "slp.1980.nc",
+      "year": 1980,
+      "size_bytes": 19354837,
+      "sha256": "4553fc2e2149542d320d888f4b5100b6336f93248e8c42a30115d81171d5e94e",
+      "source": "data/raw/ncep_reanalysis/slp.1980.nc"
+    },
+    {
+      "filename": "slp.1981.nc",
+      "year": 1981,
+      "size_bytes": 19287007,
+      "sha256": "14afb9f60e4ee317f8e4c9e6f2436d00c3097be40a457ee8b46771ff32eebb86",
+      "source": "data/raw/ncep_reanalysis/slp.1981.nc"
+    },
+    {
+      "filename": "slp.1982.nc",
+      "year": 1982,
+      "size_bytes": 19281800,
+      "sha256": "6bf2809deee9397f882d39fb4f0af4737b86af5674dcbb60c10dca8fa0a4e2b8",
+      "source": "data/raw/ncep_reanalysis/slp.1982.nc"
+    },
+    {
+      "filename": "slp.1983.nc",
+      "year": 1983,
+      "size_bytes": 19283598,
+      "sha256": "140093b34ef114cd00c8ce46fe2e1b4e917534cb8b72b23ad598ce178c5f7142",
+      "source": "data/raw/ncep_reanalysis/slp.1983.nc"
+    },
+    {
+      "filename": "slp.1984.nc",
+      "year": 1984,
+      "size_bytes": 19340343,
+      "sha256": "c89e9449c1bfdc5d4519446b8442a68d5cebeb9c8a84a624193ae59f2db60774",
+      "source": "data/raw/ncep_reanalysis/slp.1984.nc"
+    },
+    {
+      "filename": "slp.1985.nc",
+      "year": 1985,
+      "size_bytes": 19302704,
+      "sha256": "11291000c84ec865e4da21bfa39995f4353c3db109a178ad02d0063cb8dcf4a0",
+      "source": "data/raw/ncep_reanalysis/slp.1985.nc"
+    },
+    {
+      "filename": "slp.1986.nc",
+      "year": 1986,
+      "size_bytes": 19327296,
+      "sha256": "2d9a0056b6454e0edcdf2d1c73113edd4cc181b0cc41c5a5f71c39b6a3273dec",
+      "source": "data/raw/ncep_reanalysis/slp.1986.nc"
+    },
+    {
+      "filename": "slp.1987.nc",
+      "year": 1987,
+      "size_bytes": 19310733,
+      "sha256": "a966418317466d78104c6f62c1adc22122ff16245d50143253212983211ac5f9",
+      "source": "data/raw/ncep_reanalysis/slp.1987.nc"
+    },
+    {
+      "filename": "slp.1988.nc",
+      "year": 1988,
+      "size_bytes": 19393778,
+      "sha256": "fc9be0152056377e4f83d646929c7f042a2069434fe743bf8b03c89375a67bcf",
+      "source": "data/raw/ncep_reanalysis/slp.1988.nc"
+    },
+    {
+      "filename": "slp.1989.nc",
+      "year": 1989,
+      "size_bytes": 19337733,
+      "sha256": "0bd496d665fa74711a065877d0942efd8701496156c92aeffb6f52ca7da1351e",
+      "source": "data/raw/ncep_reanalysis/slp.1989.nc"
+    },
+    {
+      "filename": "slp.1990.nc",
+      "year": 1990,
+      "size_bytes": 19356572,
+      "sha256": "58d02968e89b93604234ee10409922076891d1507e3f6d0ee12b680322f41d34",
+      "source": "data/raw/ncep_reanalysis/slp.1990.nc"
+    },
+    {
+      "filename": "slp.1991.nc",
+      "year": 1991,
+      "size_bytes": 19341011,
+      "sha256": "caef4e625065f5b78857c9d31641887363e5fb118a9eea52fff60b1b5c652273",
+      "source": "data/raw/ncep_reanalysis/slp.1991.nc"
+    },
+    {
+      "filename": "slp.1992.nc",
+      "year": 1992,
+      "size_bytes": 19394189,
+      "sha256": "d79ceb9349854156557567583cae100a491523f2571906e0d0d47b6d42646da2",
+      "source": "data/raw/ncep_reanalysis/slp.1992.nc"
+    },
+    {
+      "filename": "slp.1993.nc",
+      "year": 1993,
+      "size_bytes": 19325171,
+      "sha256": "ac0640ba1c484ff2f7624c61ab72466ab78fa6b2b5681a5f70c1d8839ff6d1d0",
+      "source": "data/raw/ncep_reanalysis/slp.1993.nc"
+    },
+    {
+      "filename": "slp.1994.nc",
+      "year": 1994,
+      "size_bytes": 19330876,
+      "sha256": "397b3cd00ca50c519c410a94280a5c5c782da5432c24fb0b4c6781a03c291708",
+      "source": "data/raw/ncep_reanalysis/slp.1994.nc"
+    },
+    {
+      "filename": "slp.1995.nc",
+      "year": 1995,
+      "size_bytes": 19322053,
+      "sha256": "e8187862b956392807540bbdba42d6498a51613c2da44892d3b45e660748651d",
+      "source": "data/raw/ncep_reanalysis/slp.1995.nc"
+    },
+    {
+      "filename": "slp.1996.nc",
+      "year": 1996,
+      "size_bytes": 19438635,
+      "sha256": "6a0ffa06f6d3885c9d13e9cace21c5ced160a58c5489902faa8b0ba3e40110f9",
+      "source": "data/raw/ncep_reanalysis/slp.1996.nc"
+    },
+    {
+      "filename": "slp.1997.nc",
+      "year": 1997,
+      "size_bytes": 19384860,
+      "sha256": "37a9aa77d32b1bc9a55962bb6ecb0a1036f81cefea449a16e82ae935f22b2bde",
+      "source": "data/raw/ncep_reanalysis/slp.1997.nc"
+    },
+    {
+      "filename": "slp.1998.nc",
+      "year": 1998,
+      "size_bytes": 19360527,
+      "sha256": "f9f82d8955760a9e72c443c00718250a50a14b6b264d7dc241068f707699fcdf",
+      "source": "data/raw/ncep_reanalysis/slp.1998.nc"
+    },
+    {
+      "filename": "slp.1999.nc",
+      "year": 1999,
+      "size_bytes": 19355591,
+      "sha256": "1affc7328d76d995ddd12df81d9d0f99c07e80decb4043e9696d419950719e68",
+      "source": "data/raw/ncep_reanalysis/slp.1999.nc"
+    },
+    {
+      "filename": "slp.2000.nc",
+      "year": 2000,
+      "size_bytes": 19433231,
+      "sha256": "8cb9c04364dd8489130921c8b5a620d022a1a62196b66c7d05b5ff3b0df86bd5",
+      "source": "data/raw/ncep_reanalysis/slp.2000.nc"
+    },
+    {
+      "filename": "slp.2001.nc",
+      "year": 2001,
+      "size_bytes": 19390065,
+      "sha256": "67706bef8298e61d3f8dc2248f9cb746014e77b3bf8ed4a9a092d85522882d39",
+      "source": "data/raw/ncep_reanalysis/slp.2001.nc"
+    },
+    {
+      "filename": "slp.2002.nc",
+      "year": 2002,
+      "size_bytes": 19392763,
+      "sha256": "8309502c000f321cee2c3d939547d501c5eb635f281d2ce971f317faa258d384",
+      "source": "data/raw/ncep_reanalysis/slp.2002.nc"
+    },
+    {
+      "filename": "slp.2003.nc",
+      "year": 2003,
+      "size_bytes": 19388441,
+      "sha256": "94a8bda3a6edff0737330f9f34c268c698252b9d3fceea377270e6770f224b7b",
+      "source": "data/raw/ncep_reanalysis/slp.2003.nc"
+    },
+    {
+      "filename": "slp.2004.nc",
+      "year": 2004,
+      "size_bytes": 19430847,
+      "sha256": "08a854991c56394ac96d83fd008aa983dcfc05b79d348c132d1e023b07e0d5c7",
+      "source": "data/raw/ncep_reanalysis/slp.2004.nc"
+    },
+    {
+      "filename": "slp.2005.nc",
+      "year": 2005,
+      "size_bytes": 19404181,
+      "sha256": "24109b6d760ea9940eee8efcda9327f46d8efe0bb7a8ae04c5fda4ca96268474",
+      "source": "data/raw/ncep_reanalysis/slp.2005.nc"
+    },
+    {
+      "filename": "slp.2006.nc",
+      "year": 2006,
+      "size_bytes": 19381903,
+      "sha256": "096a505db25d293b91e371e4825acca1cbc2007eb7a962733caf6920eff32267",
+      "source": "data/raw/ncep_reanalysis/slp.2006.nc"
+    },
+    {
+      "filename": "slp.2007.nc",
+      "year": 2007,
+      "size_bytes": 19422292,
+      "sha256": "a1fcd2f58053e5aebdefa6396e9b4d58c5c5ca7c4cfa63793526426d6bac3c3e",
+      "source": "data/raw/ncep_reanalysis/slp.2007.nc"
+    },
+    {
+      "filename": "slp.2008.nc",
+      "year": 2008,
+      "size_bytes": 19458870,
+      "sha256": "f12d3dc698c7efbcc8896fad61809b9a29540f9ea5759624a72ecff0aec5518f",
+      "source": "data/raw/ncep_reanalysis/slp.2008.nc"
+    },
+    {
+      "filename": "slp.2009.nc",
+      "year": 2009,
+      "size_bytes": 19409740,
+      "sha256": "2de3b5daeeb06b8df0acd1ff54ffde5c42cba4ddbdc7e40e4cc2fc8fe3c5ee5a",
+      "source": "data/raw/ncep_reanalysis/slp.2009.nc"
+    },
+    {
+      "filename": "slp.2010.nc",
+      "year": 2010,
+      "size_bytes": 19430540,
+      "sha256": "d384bec05e84130bb15514cba8bb417c07ece59de508249253ca304dcbd48541",
+      "source": "data/raw/ncep_reanalysis/slp.2010.nc"
+    },
+    {
+      "filename": "slp.2011.nc",
+      "year": 2011,
+      "size_bytes": 19443091,
+      "sha256": "73fe2546e8b34edea29f0c5bb5f1db7a8f230d9d735720847ea4f1d30365985d",
+      "source": "data/raw/ncep_reanalysis/slp.2011.nc"
+    },
+    {
+      "filename": "slp.2012.nc",
+      "year": 2012,
+      "size_bytes": 19475073,
+      "sha256": "93e8b90689799a4d72ca00e6aeffaedbdb3a50a75d02248bcc36a6b8989ad8b5",
+      "source": "data/raw/ncep_reanalysis/slp.2012.nc"
+    },
+    {
+      "filename": "slp.2013.nc",
+      "year": 2013,
+      "size_bytes": 19442147,
+      "sha256": "66843589c1ada678ced2939720ea05064720ab3d89fb3a0d58ee12ec670935b2",
+      "source": "data/raw/ncep_reanalysis/slp.2013.nc"
+    },
+    {
+      "filename": "slp.2014.nc",
+      "year": 2014,
+      "size_bytes": 19431113,
+      "sha256": "66bcf11ec446f5f8cb86815548a847991579ca411b65e86e5dc6e7b6afccbe68",
+      "source": "data/raw/ncep_reanalysis/slp.2014.nc"
+    },
+    {
+      "filename": "slp.2015.nc",
+      "year": 2015,
+      "size_bytes": 19461270,
+      "sha256": "4ab3934c72bf9348a8f9badf31e80ac857cfab08623f3e78c1e64a7f0c5bb936",
+      "source": "data/raw/ncep_reanalysis/slp.2015.nc"
+    },
+    {
+      "filename": "slp.2016.nc",
+      "year": 2016,
+      "size_bytes": 19512217,
+      "sha256": "5a40ade33ab0eb7cebbd7a93af496010df1eabd2913b6503449eb7ffe8321de9",
+      "source": "data/raw/ncep_reanalysis/slp.2016.nc"
+    },
+    {
+      "filename": "slp.2017.nc",
+      "year": 2017,
+      "size_bytes": 19461710,
+      "sha256": "fdecf31be6e73d70bd7e628bacaa52d80025d868fb2032025311065643273ff1",
+      "source": "data/raw/ncep_reanalysis/slp.2017.nc"
+    },
+    {
+      "filename": "slp.2018.nc",
+      "year": 2018,
+      "size_bytes": 19349310,
+      "sha256": "9e5266e1a847d165138b0f2a4a326af9087f668f5c5e6bd9df8b39563901c85b",
+      "source": "data/raw/ncep_reanalysis/slp.2018.nc"
+    },
+    {
+      "filename": "slp.2019.nc",
+      "year": 2019,
+      "size_bytes": 19322344,
+      "sha256": "fd536938516639282e4c1b565a06fc3bb53398a95ba8035582248da3ba3c3786",
+      "source": "data/raw/ncep_reanalysis/slp.2019.nc"
+    },
+    {
+      "filename": "slp.2020.nc",
+      "year": 2020,
+      "size_bytes": 19420781,
+      "sha256": "b939219aaf7ee90768657b92bfbfd123f37592e7a68e41bef096960d845257ec",
+      "source": "data/raw/ncep_reanalysis/slp.2020.nc"
+    },
+    {
+      "filename": "slp.2021.nc",
+      "year": 2021,
+      "size_bytes": 19393235,
+      "sha256": "8c8a6adcde52e191498385a7cf7ad246f92bf9e4f762c8251254a0a4297214e6",
+      "source": "data/raw/ncep_reanalysis/slp.2021.nc"
+    },
+    {
+      "filename": "slp.2022.nc",
+      "year": 2022,
+      "size_bytes": 19397408,
+      "sha256": "384d4b9f5e4453d844fc6eef65aff4e0fa976cd7064f409da77d02fe0b6130c5",
+      "source": "data/raw/ncep_reanalysis/slp.2022.nc"
+    },
+    {
+      "filename": "slp.2023.nc",
+      "year": 2023,
+      "size_bytes": 19363980,
+      "sha256": "ce97b775139415f707a47207e73e0445d92e87be2d67a08018def15509f51e58",
+      "source": "data/raw/ncep_reanalysis/slp.2023.nc"
+    },
+    {
+      "filename": "slp.2024.nc",
+      "year": 2024,
+      "size_bytes": 19457035,
+      "sha256": "ea0a82840fb6491801ea98369725915fdf05a2b3dce7f02c32e993db2f4be814",
+      "source": "data/raw/ncep_reanalysis/slp.2024.nc"
+    },
+    {
+      "filename": "slp.2025.nc",
+      "year": 2025,
+      "size_bytes": 19410403,
+      "sha256": "3539d31afd518ad619ef8684249a1a3051f95b4d8819d3627392f8bb2246d91a",
+      "source": "data/raw/ncep_reanalysis/slp.2025.nc"
+    },
+    {
+      "filename": "slp.2026.nc",
+      "year": 2026,
+      "size_bytes": 4060355,
+      "sha256": "d0d9da5a70bdb92cd1eb324ca9bbc555f5398de8844b957ce5ccf6dbeed75c14",
+      "source": "data/raw/ncep_reanalysis/slp.2026.nc"
+    }
+  ]
+}
