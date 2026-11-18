@@ -1,6 +1,6 @@
 {
   "dataset": "era5",
-  "generated_at": "2026-11-17T07:09:20.501344+00:00",
+  "generated_at": "2026-11-18T09:09:56.851961+00:00",
   "source_dir": "data/raw/mean_sea_level_pressure",
   "file_count": 87,
   "total_bytes": 51513597131,

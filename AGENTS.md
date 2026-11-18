@@ -96,6 +96,13 @@ Any AI agent modifying this repository **MUST** respect the following non-negoti
 10. **ACADEMIC ATTRIBUTION & SPANISH UI/DOCS:**  
     All scientific documentation (`docs/`), code comments, UI labels, and Git commit messages must be written in formal Spanish, maintaining institutional attribution to **Laboratorio de Oceanografía Física (LOFA) - Universidad Austral de Chile (UACh)**.
 
+11. **NEVER MAKE A COMMIT - ABSOLUTE RULE:**
+    NEVER run `git commit`, `git commit -m`, `git commit -am`, `git commit --amend`, or any other command, tool, or script that creates a commit.
+    NEVER create a commit on behalf of the user, even if the user asks you to. Even if the user says "commit this", "commit now", or "just commit it", DO NOT commit.
+    Only the human user is allowed to make commits, manually, in their own terminal.
+    Your job ends at preparing the changes. You must stop before committing and tell the user the changes are ready for them to review and commit.
+
+If you are unsure, DO NOT commit.
 ---
 
 ## 3. Reference Scientific Formulations (Benchmark from `Anticiclon.ipynb`)

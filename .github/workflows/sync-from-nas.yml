@@ -119,13 +119,15 @@ jobs:
             INCLUDES+=(--include="/mean_sea_level_pressure/era5_mslp_pacifico_${y}.nc")
           done
           SSH_CMD="ssh -i $HOME/.ssh/id_ed25519_nas -o IdentitiesOnly=yes -o BatchMode=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=4"
+          # El comando forzado del NAS fija las opciones del servidor y no acepta --dry-run.
+          # --list-only lista sin transferir y es compatible con esas opciones.
           DRY_ARGS=()
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            DRY_ARGS+=(--dry-run)
+            DRY_ARGS+=(--list-only)
           fi
           mkdir -p data/raw
           set -o pipefail
-          rsync -avh --partial --append-verify "${DRY_ARGS[@]}" \
+          rsync -avh --partial "${DRY_ARGS[@]}" \
             -e "$SSH_CMD" \
             "${INCLUDES[@]}" \
             --exclude='*' \

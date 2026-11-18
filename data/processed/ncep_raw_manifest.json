@@ -1,6 +1,6 @@
 {
   "dataset": "ncep",
-  "generated_at": "2026-11-17T07:09:22.451715+00:00",
+  "generated_at": "2026-11-18T09:09:58.805982+00:00",
   "source_dir": "data/raw/ncep_reanalysis",
   "file_count": 79,
   "total_bytes": 1514051220,
