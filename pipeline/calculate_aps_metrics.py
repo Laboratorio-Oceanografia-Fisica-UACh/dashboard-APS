@@ -471,6 +471,18 @@ def extract_latest_spatial_grid(input_dir, df):
         }
 
 
+def _num_or_none(value, digits):
+    """
+    Convierte un escalar a float redondeado o a None si es ausente.
+    Garantiza que el JSON publicado no contenga NaN (no válido para JSON.parse).
+    """
+    if value is None:
+        return None
+    if pd.isna(value):
+        return None
+    return float(round(float(value), digits))
+
+
 def build_dashboard_dataset_v53(df, spatial_grid):
     """
     Construye la estructura canónica JSON V5.3 y el DataFrame Multimodelo Consolidado.
@@ -482,17 +494,17 @@ def build_dashboard_dataset_v53(df, spatial_grid):
     # Interpoladores climatológicos continuos por día del año
     clim_interp = generate_doy_climatology_series(dates_list)
     
-    clim_p_max = [float(round(float(clim_interp["p_max"](d)), 2)) for d in doy_series]
-    clim_lat_core = [float(round(float(clim_interp["lat_core"](d)), 2)) for d in doy_series]
-    clim_lon_core = [float(round(float(clim_interp["lon_core"](d)), 2)) for d in doy_series]
-    clim_lat_cent = [float(round(float(clim_interp["lat_centroid"](d)), 2)) for d in doy_series]
-    clim_lon_cent = [float(round(float(clim_interp["lon_centroid"](d)), 2)) for d in doy_series]
-    clim_area_1020 = [float(round(float(clim_interp["area_1020"](d)), 3)) for d in doy_series]
-    clim_vol_integral = [float(round(float(clim_interp["vol_integral"](d)), 3)) for d in doy_series]
-    clim_h_eff = [float(round(float(clim_interp["h_eff"](d)), 2)) for d in doy_series]
-    clim_dist_dec = [float(round(float(clim_interp["dist_decoupling_km"](d)), 1)) for d in doy_series]
-    clim_azimuth = [float(round(float(clim_interp["azimuth_deg"](d)), 1)) for d in doy_series]
-    clim_patagonia = [float(round(float(clim_interp["p_patagonia"](d)), 2)) for d in doy_series]
+    clim_p_max = [_num_or_none(clim_interp["p_max"](d), 2) for d in doy_series]
+    clim_lat_core = [_num_or_none(clim_interp["lat_core"](d), 2) for d in doy_series]
+    clim_lon_core = [_num_or_none(clim_interp["lon_core"](d), 2) for d in doy_series]
+    clim_lat_cent = [_num_or_none(clim_interp["lat_centroid"](d), 2) for d in doy_series]
+    clim_lon_cent = [_num_or_none(clim_interp["lon_centroid"](d), 2) for d in doy_series]
+    clim_area_1020 = [_num_or_none(clim_interp["area_1020"](d), 3) for d in doy_series]
+    clim_vol_integral = [_num_or_none(clim_interp["vol_integral"](d), 3) for d in doy_series]
+    clim_h_eff = [_num_or_none(clim_interp["h_eff"](d), 2) for d in doy_series]
+    clim_dist_dec = [_num_or_none(clim_interp["dist_decoupling_km"](d), 1) for d in doy_series]
+    clim_azimuth = [_num_or_none(clim_interp["azimuth_deg"](d), 1) for d in doy_series]
+    clim_patagonia = [_num_or_none(clim_interp["p_patagonia"](d), 2) for d in doy_series]
 
     # Modelo ERA5 Observado
     era5_model = {
@@ -501,30 +513,30 @@ def build_dashboard_dataset_v53(df, spatial_grid):
         "description": "Serie climática observada con asimilación 4D-Var de scatterómetros y altimetría radar",
         "is_forecast": False,
         "dates": dates_list,
-        "p_max_fit": [float(round(x, 2)) for x in df["p_max_fit"].tolist()],
-        "lat_core": [float(round(x, 2)) for x in df["lat_core"].tolist()],
-        "lon_core": [float(round(x, 2)) for x in df["lon_core"].tolist()],
-        "lat_centroid": [float(round(x, 2)) for x in df["lat_centroid"].tolist()],
-        "lon_centroid": [float(round(x, 2)) for x in df["lon_centroid"].tolist()],
-        "area_1020": [float(round(x, 3)) for x in df["area_1020"].tolist()],
-        "vol_integral": [float(round(x, 3)) for x in df["vol_integral"].tolist()],
-        "h_eff": [float(round(x, 2)) for x in df["h_eff"].tolist()],
-        "dist_decoupling_km": [float(round(x, 1)) for x in df["dist_decoupling_km"].tolist()],
-        "azimuth_deg": [float(round(x, 1)) for x in df["azimuth_deg"].tolist()],
-        "p_patagonia": [float(round(x, 2)) for x in df["p_patagonia"].tolist()],
+        "p_max_fit": [_num_or_none(x, 2) for x in df["p_max_fit"].tolist()],
+        "lat_core": [_num_or_none(x, 2) for x in df["lat_core"].tolist()],
+        "lon_core": [_num_or_none(x, 2) for x in df["lon_core"].tolist()],
+        "lat_centroid": [_num_or_none(x, 2) for x in df["lat_centroid"].tolist()],
+        "lon_centroid": [_num_or_none(x, 2) for x in df["lon_centroid"].tolist()],
+        "area_1020": [_num_or_none(x, 3) for x in df["area_1020"].tolist()],
+        "vol_integral": [_num_or_none(x, 3) for x in df["vol_integral"].tolist()],
+        "h_eff": [_num_or_none(x, 2) for x in df["h_eff"].tolist()],
+        "dist_decoupling_km": [_num_or_none(x, 1) for x in df["dist_decoupling_km"].tolist()],
+        "azimuth_deg": [_num_or_none(x, 1) for x in df["azimuth_deg"].tolist()],
+        "p_patagonia": [_num_or_none(x, 2) for x in df["p_patagonia"].tolist()],
         "latest": {
             "date": df.iloc[-1]["date"],
-            "p_max_fit": float(df.iloc[-1]["p_max_fit"]),
-            "lat_core": float(df.iloc[-1]["lat_core"]),
-            "lon_core": float(df.iloc[-1]["lon_core"]),
-            "lat_centroid": float(df.iloc[-1]["lat_centroid"]),
-            "lon_centroid": float(df.iloc[-1]["lon_centroid"]),
-            "area_1020": float(df.iloc[-1]["area_1020"]),
-            "vol_integral": float(df.iloc[-1]["vol_integral"]),
-            "h_eff": float(df.iloc[-1]["h_eff"]),
-            "dist_decoupling_km": float(df.iloc[-1]["dist_decoupling_km"]),
-            "azimuth_deg": float(df.iloc[-1]["azimuth_deg"]),
-            "p_patagonia": float(df.iloc[-1]["p_patagonia"])
+            "p_max_fit": _num_or_none(df.iloc[-1]["p_max_fit"], 2),
+            "lat_core": _num_or_none(df.iloc[-1]["lat_core"], 2),
+            "lon_core": _num_or_none(df.iloc[-1]["lon_core"], 2),
+            "lat_centroid": _num_or_none(df.iloc[-1]["lat_centroid"], 2),
+            "lon_centroid": _num_or_none(df.iloc[-1]["lon_centroid"], 2),
+            "area_1020": _num_or_none(df.iloc[-1]["area_1020"], 3),
+            "vol_integral": _num_or_none(df.iloc[-1]["vol_integral"], 3),
+            "h_eff": _num_or_none(df.iloc[-1]["h_eff"], 2),
+            "dist_decoupling_km": _num_or_none(df.iloc[-1]["dist_decoupling_km"], 1),
+            "azimuth_deg": _num_or_none(df.iloc[-1]["azimuth_deg"], 1),
+            "p_patagonia": _num_or_none(df.iloc[-1]["p_patagonia"], 2)
         }
     }
 
@@ -745,13 +757,13 @@ def main():
     # 4. Guardar salidas en data/processed/ y web/data/
     ensure_parent_dir(output_path)
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(dataset, f, indent=2, ensure_ascii=False)
+        json.dump(dataset, f, indent=2, ensure_ascii=False, allow_nan=False)
     print(f"✅ [ÉXITO] Archivo web generado en: {output_path}")
 
     web_json_path = resolve_project_path("web/data/latest_aps_data.json")
     ensure_parent_dir(web_json_path)
     with open(web_json_path, "w", encoding="utf-8") as f:
-        json.dump(dataset, f, indent=2, ensure_ascii=False)
+        json.dump(dataset, f, indent=2, ensure_ascii=False, allow_nan=False)
     print(f"✅ [ÉXITO] Copia frontend generada en: {web_json_path}")
 
     web_csv_path = resolve_project_path("web/data/era5_daily_aps_metrics.csv")
