@@ -1,0 +1,94 @@
+name: Actualización mensual ERA5 y despliegue
+
+on:
+  schedule:
+    # Día 8 de cada mes a las 12:00 UTC
+    - cron: '0 12 8 * *'
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Año a reprocesar (vacío = mes anterior)'
+        required: false
+      month:
+        description: 'Mes a reprocesar 1-12 (vacío = mes anterior)'
+        required: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: aps-data-update
+  cancel-in-progress: false
+
+jobs:
+  update-era5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Cache de Natural Earth 10m
+        uses: actions/cache@v4
+        with:
+          path: data/shapefiles
+          key: natural-earth-10m-v1
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pipeline/requirements.txt
+
+      - name: Descargar y procesar el mes ERA5
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.year }}" ]; then
+            ARGS="$ARGS --year ${{ github.event.inputs.year }}"
+          fi
+          if [ -n "${{ github.event.inputs.month }}" ]; then
+            ARGS="$ARGS --month ${{ github.event.inputs.month }}"
+          fi
+          python pipeline/update_era5_monthly.py $ARGS
+
+      - name: Construir payload web desde la caché
+        run: python pipeline/build_dashboard.py --from-cache --active-start-year 1993
+
+      - name: Registrar cambios de datos procesados
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot - LOFA"
+          git add data/processed web/data
+          if git diff --staged --quiet; then
+            echo "Sin cambios en datos procesados."
+          else
+            git commit -m "Actualización mensual ERA5 y payload web del APS [skip ci]"
+            git push
+          fi
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

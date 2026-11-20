@@ -604,7 +604,7 @@
         </div>
 
         <h3>6. Métricas de Validación Estadística (Normas OMM / S-RIP)</h3>
-        <p>Siguiendo las directrices del <em>SPARC Reanalysis Intercomparison Project (S-RIP)</em>, cada modelo \(M\) se evalúa frente al reanálisis de referencia \(O\) (ERA5):</p>
+        <p>Siguiendo las directrices del <em>SPARC Reanalysis Intercomparison Project (S-RIP)</em>, cada modelo \(M\) se evalúa frente a la referencia \(O\) indicada en cada fila (Normal OMM 1994–2023 o ERA5 verificante):</p>
         <div class="math-box">
           <div class="math-formula">
             $$\text{RMSE} = \sqrt{\frac{1}{N}\sum_{i=1}^N (M_i - O_i)^2}, \quad \text{BIAS} = \overline{M} - \overline{O}, \quad d = 1 - \frac{\sum (M_i - O_i)^2}{\sum (|M_i - \overline{O}| + |O_i - \overline{O}|)^2}$$
@@ -680,9 +680,11 @@
       </div>
 
       <div class="science-modal-body">
-        <p style="margin-bottom: 1rem; color: #cbd5e1;">Evaluación cuantitativa rigurosa contra las observaciones de
-          reanálisis de referencia (<strong>ERA5 de Copernicus ECMWF, Resolución 0.25°</strong>). Permite evaluar el
-          error sistemático, la correlación temporal y el desplazamiento espacial de cada modelo:</p>
+        <p style="margin-bottom: 1rem; color: #cbd5e1;">Evaluación cuantitativa rigurosa contra la referencia indicada en cada
+          fila: la <strong>Normal OMM 1994–2023</strong> para concordancia histórica/climatológica y el
+          <strong>reanálisis ERA5</strong> para skill de pronóstico verificado. Permite evaluar el error
+          sistemático, la correlación temporal y el desplazamiento espacial de cada modelo. Los valores
+          ausentes se muestran como <strong>N/D</strong>:</p>
 
         <div style="overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
           <table class="validation-table" id="validationMetricsTable">

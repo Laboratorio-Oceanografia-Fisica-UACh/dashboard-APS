@@ -222,6 +222,12 @@ Los scripts resuelven las rutas relativas contra la raíz del proyecto. Se puede
 
 # 4. Calcular métricas y actualizar el dashboard
 ./venv/bin/python pipeline/calculate_aps_metrics.py
+
+# 5. Reconstruir el payload web solo desde la caché (sin leer NetCDF)
+./venv/bin/python pipeline/build_dashboard.py --from-cache --active-start-year 1993
+
+# 6. Verificar el pronóstico GFS contra ERA5 por fecha exacta
+./venv/bin/python pipeline/verify_gfs_forecast.py
 ```
 
 En Windows, reemplaza `./venv/bin/python` por `.\venv\Scripts\python`.
@@ -244,6 +250,24 @@ Abre en tu navegador: `http://localhost:8000`
 ```bash
 ./venv/bin/python -m unittest discover -s tests -v
 ```
+
+### 10. Automatización en GitHub Actions
+
+Los workflows desatendidos viven en `.github/workflows/`:
+
+| Workflow | Frecuencia | Función |
+|---|---|---|
+| `update_gfs.yml` | Diario, 06:15 UTC | Descarga GFS (+7 días), reconstruye el payload, verifica contra ERA5 y despliega Pages |
+| `update_era5.yml` | Día 8 de cada mes, 12:00 UTC | Descarga el mes anterior desde Copernicus CDS, hace upsert en la caché, reconstruye y despliega |
+| `tests.yml` | Push / Pull Request | Ejecuta la suite geofísica y verifica las interfaces CLI |
+| `sync-from-nas.yml` | Manual (`workflow_dispatch`) | Sincroniza NetCDF históricos desde el NAS; no bloquea la operación diaria |
+
+Configura en **Settings → Secrets and variables → Actions**:
+
+- `CDSAPI_URL` y `CDSAPI_KEY`: credenciales de Copernicus CDS para `update_era5.yml`.
+- Opcionales para el NAS: `TS_AUTHKEY`, `NAS_HOST`, `NAS_USER`, `NAS_DATA_ROOT`, `NAS_SSH_KEY`, `NAS_KNOWN_HOSTS`.
+
+El flujo diario/mensual no depende del NAS: la caché CSV es la fuente de verdad operativa y los NetCDF crudos solo se necesitan para reprocesos completos.
 
 </details>
 

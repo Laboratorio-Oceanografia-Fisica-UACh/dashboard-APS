@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-11-20T04:55:59.223925+00:00",
+  "reference": "ERA5 Reanálisis",
+  "skill_type": "forecast_skill_vs_era5",
+  "min_pairs": 2,
+  "n_pairs": 0,
+  "metrics": {
+    "rmse_psa_hpa": null,
+    "bias_psa_hpa": null,
+    "corr_psa": null,
+    "corr_lat": null,
+    "dist_error_km": null,
+    "willmott_d": null
+  },
+  "pairs": [],
+  "note": "Verificación por fecha exacta entre pronósticos GFS archivados y ERA5. Los valores nulos indican que aún no existen pares verificados suficientes; nunca se reemplazan por constantes."
+}

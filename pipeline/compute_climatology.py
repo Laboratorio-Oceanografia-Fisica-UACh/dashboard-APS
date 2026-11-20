@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.interpolate import interp1d
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -179,6 +180,53 @@ def load_wmo_climatology(path=None):
         raise ValueError(f"La climatología de {path} no contiene 12 meses.")
 
     return climatology
+
+
+def generate_doy_climatology_series(dates_list, climatology=None):
+    """
+    Genera interpoladores continuos por día del año (DOY) a partir de la
+    climatología mensual OMM 1994-2023 cargada desde su JSON canónico.
+
+    El acimut se interpola de forma circular sobre sus componentes seno/coseno
+    para evitar discontinuidades entre 359° y 0°.
+    """
+    if climatology is None:
+        climatology = load_wmo_climatology()
+
+    # Puntos medios aproximados de cada mes expresados como día del año
+    mid_month_doy = np.array([15, 45, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349])
+
+    # Envolver para interpolación periódica circular
+    doy_extended = np.concatenate([mid_month_doy - 365, mid_month_doy, mid_month_doy + 365])
+
+    clim_interpolators = {}
+    for var in ["p_max", "lat_core", "lon_core", "lat_centroid", "lon_centroid",
+                "area_1020", "vol_integral", "h_eff", "dist_decoupling_km", "azimuth_deg", "p_patagonia"]:
+        vals = np.asarray(climatology[var], dtype=float)
+        if vals.size != 12 or not np.all(np.isfinite(vals)):
+            raise ValueError(f"La climatología mensual de '{var}' debe tener 12 valores finitos.")
+
+        if var == "azimuth_deg":
+            # Interpolación circular sobre componentes seno/coseno
+            sin_interp = interp1d(
+                doy_extended,
+                np.concatenate([np.sin(np.radians(vals))] * 3),
+                kind="cubic",
+            )
+            cos_interp = interp1d(
+                doy_extended,
+                np.concatenate([np.cos(np.radians(vals))] * 3),
+                kind="cubic",
+            )
+            clim_interpolators[var] = (
+                lambda doy, si=sin_interp, ci=cos_interp:
+                (np.degrees(np.arctan2(si(doy), ci(doy))) + 360.0) % 360.0
+            )
+        else:
+            vals_extended = np.concatenate([vals, vals, vals])
+            clim_interpolators[var] = interp1d(doy_extended, vals_extended, kind="cubic")
+
+    return clim_interpolators
 
 
 def main():

@@ -581,25 +581,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Renderizar tabla de métricas de validación
     const tableBody = document.getElementById('validationTableBody');
-    if (tableBody && data.validation_metrics) {
-      tableBody.innerHTML = '';
-      data.validation_metrics.forEach(row => {
-        const tr = document.createElement('tr');
-        const badgeClass = row.skill_class || (row.rmse_psa.includes('0.0') ? 'badge-primary' : 'badge-info');
-        const isBest = row.rmse_psa.includes('0.0') || row.corr_psa === '1.000';
-        tr.innerHTML = `
-          <td><strong>${row.model}</strong></td>
-          <td><span style="font-size: 0.8rem; color: #94a3b8;">${row.type}</span></td>
-          <td><span class="badge ${badgeClass}">${row.skill_rating || 'Validado'}</span></td>
-          <td style="${isBest ? 'color: var(--color-success); font-weight: 700;' : ''}">${row.rmse_psa}</td>
-          <td style="font-family: var(--font-mono);">${row.bias_psa}</td>
-          <td style="${row.corr_psa === '1.000' ? 'color: var(--color-success); font-weight: 700;' : ''}">${row.corr_psa}</td>
-          <td>${row.corr_lat}</td>
-          <td>${row.dist_error_km}</td>
-          <td><strong style="color: ${parseFloat(row.willmott_d) > 0.8 ? 'var(--color-accent)' : '#e2e8f0'}">${row.willmott_d}</strong></td>
-        `;
-        tableBody.appendChild(tr);
-      });
+    if (tableBody) {
+      const rows = Array.isArray(data.validation_metrics) ? data.validation_metrics : [];
+      const formatValue = (value, digits = 2) => {
+        if (value === null || value === undefined || value === '') return 'N/D';
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric.toFixed(digits) : 'N/D';
+      };
+
+      if (rows.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#94a3b8;">Sin métricas de validación disponibles.</td></tr>';
+      } else {
+        tableBody.innerHTML = '';
+        rows.forEach(row => {
+          const tr = document.createElement('tr');
+          const badgeClass = row.skill_class || 'badge-info';
+          const willmottNumeric = Number(row.willmott_d);
+          const willmottColor = Number.isFinite(willmottNumeric) && willmottNumeric > 0.8
+            ? 'var(--color-accent)'
+            : '#e2e8f0';
+          const note = row.note || '';
+          tr.innerHTML = `
+            <td><strong>${row.model}</strong></td>
+            <td title="${note}">
+              <span style="font-size: 0.8rem; color: #94a3b8;">${row.type || 'N/D'}</span><br>
+              <span class="badge badge-info" style="margin-top: 4px;">${row.reference || 'Referencia N/D'}</span>
+            </td>
+            <td><span class="badge ${badgeClass}">${row.skill_rating || 'N/D'}</span></td>
+            <td>${formatValue(row.rmse_psa_hpa, 3)}</td>
+            <td style="font-family: var(--font-mono);">${formatValue(row.bias_psa_hpa, 3)}</td>
+            <td>${formatValue(row.corr_psa, 3)}</td>
+            <td>${formatValue(row.corr_lat, 3)}</td>
+            <td>${formatValue(row.dist_error_km, 1)}</td>
+            <td><strong style="color: ${willmottColor}">${formatValue(row.willmott_d, 3)}</strong></td>
+          `;
+          tableBody.appendChild(tr);
+        });
+      }
     }
 
     // 7. Menú Desplegable Institucional de Documentación y Enlaces
@@ -643,7 +661,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Carga el archivo JSON de métricas desde la ruta relativa con fallback
+ * Carga el archivo JSON de métricas desde la ruta relativa.
+ * Si ninguna ruta responde, retorna null y la interfaz muestra un estado de
+ * error explícito. No se usan datos sintéticos de respaldo.
  */
 async function loadData() {
   const possiblePaths = [
@@ -663,8 +683,8 @@ async function loadData() {
     }
   }
 
-  console.warn('[AVISO] Fetch HTTP no disponible. Cargando respaldo offline...');
-  return getInlineFallbackData();
+  console.error('[ERROR] No se pudo cargar latest_aps_data.json desde ninguna ruta conocida.');
+  return null;
 }
 
 function showDataLoadError() {
@@ -672,34 +692,4 @@ function showDataLoadError() {
   if (kpiPressure) {
     kpiPressure.innerHTML = `<span style="font-size: 1rem; color: #ef4444;">Error al cargar datos</span>`;
   }
-}
-
-/**
- * Datos de respaldo en caso de apertura offline sin servidor
- */
-function getInlineFallbackData() {
-  const today = new Date().toISOString().split('T')[0];
-  return {
-    metadata: {
-      project: "Observatorio del Anticiclón del Pacífico Sur",
-      institution: "LOFA - UACh",
-      last_updated: today
-    },
-    models: {
-      "ERA5 Reanálisis": {
-        id: "era5_reanalisis",
-        name: "ERA5 Reanálisis (ECMWF)",
-        dates: [today],
-        pressure_psa: [1025.4],
-        lat: [-34.5],
-        lon: [-92.1],
-        latest: { date: today, pressure_psa: 1025.4, lat: -34.5, lon: -92.1 }
-      }
-    },
-    spatial_grid: {
-      lats: [-35, -32, -29],
-      lons: [-100, -95, -90],
-      current_anomaly: [[0.5, 1.2, 0.8], [1.1, 1.8, 1.3], [0.4, 0.9, 0.6]]
-    }
-  };
 }

@@ -4,9 +4,10 @@
     "institution": "Laboratorio de Oceanografía Física (LOFA) - Universidad Austral de Chile (UACh)",
     "director_cientifico": "Dr. José Garcés Vargas",
     "version": "5.3",
-    "last_updated": "2026-11-19T03:38:18.468584+00:00",
+    "last_updated": "2026-11-20T04:55:57.663034+00:00",
     "climatology_period": "1994-2023 (WMO 30-Year Standard Normal)",
     "climatology_source": "data/processed/wmo_climatology_1994_2023.json",
+    "willmott_reference": "Normal OMM 1994-2023 para concordancia histórica; ERA5 verificante para skill de pronóstico",
     "domain": {
       "lat_north": -18.0,
       "lat_south": -48.0,
@@ -297284,6 +297285,40 @@
       }
     }
   },
+  "validation_metrics": [
+    {
+      "model": "ERA5 Reanálisis",
+      "type": "Reanálisis vs Normal OMM 1994-2023",
+      "reference": "Normal OMM 1994-2023",
+      "skill_type": "historical_concordance",
+      "n_pairs": 12367,
+      "rmse_psa_hpa": 4.674,
+      "bias_psa_hpa": -0.088,
+      "corr_psa": 0.271,
+      "corr_lat": 0.131,
+      "dist_error_km": 1275.0,
+      "willmott_d": 0.379,
+      "skill_rating": "Limitado",
+      "skill_class": "badge-accent",
+      "note": "Concordancia histórica diaria con la Normal OMM 1994-2023. La climatología se calcula desde ERA5, por lo que mide representatividad climática, no habilidad independiente."
+    },
+    {
+      "model": "NOAA GFS Pronóstico",
+      "type": "Pronóstico vs Normal OMM",
+      "reference": "Normal OMM 1994-2023",
+      "skill_type": "concordance_with_climatology",
+      "n_pairs": 8,
+      "rmse_psa_hpa": 3.027,
+      "bias_psa_hpa": 1.415,
+      "corr_psa": -0.839,
+      "corr_lat": 0.901,
+      "dist_error_km": 1338.5,
+      "willmott_d": 0.006,
+      "skill_rating": "Limitado",
+      "skill_class": "badge-accent",
+      "note": "Concordancia provisional del pronóstico con la Normal OMM. No constituye skill verificado: la referencia es climatológica, no un análisis del día pronosticado."
+    }
+  ],
   "spatial_grid": {
     "date": "2026-11-10",
     "lats": [

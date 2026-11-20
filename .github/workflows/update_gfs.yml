@@ -1,0 +1,83 @@
+name: Actualización diaria GFS y despliegue
+
+on:
+  schedule:
+    # Todos los días a las 06:15 UTC (madrugada en Chile)
+    - cron: '15 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: aps-data-update
+  cancel-in-progress: false
+
+jobs:
+  update-gfs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Cache de Natural Earth 10m
+        uses: actions/cache@v4
+        with:
+          path: data/shapefiles
+          key: natural-earth-10m-v1
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          sudo apt-get update
+          sudo apt-get install -y libeccodes-dev libeccodes-tools || true
+          pip install -r pipeline/requirements.txt
+
+      - name: Descargar pronóstico GFS (+7 días)
+        continue-on-error: true
+        run: python pipeline/download_gfs_forecast.py --archive --strict
+
+      - name: Construir payload web desde la caché
+        run: python pipeline/build_dashboard.py --from-cache --active-start-year 1993
+
+      - name: Verificar GFS contra ERA5
+        continue-on-error: true
+        run: python pipeline/verify_gfs_forecast.py
+
+      - name: Registrar cambios de datos procesados
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot - LOFA"
+          git add data/processed web/data
+          if git diff --staged --quiet; then
+            echo "Sin cambios en datos procesados."
+          else
+            git commit -m "Actualización diaria GFS y payload web del APS [skip ci]"
+            git push
+          fi
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

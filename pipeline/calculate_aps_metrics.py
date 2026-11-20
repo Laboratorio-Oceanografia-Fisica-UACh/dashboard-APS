@@ -33,7 +33,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from pipeline.paths import ensure_parent_dir, resolve_project_path
 from pipeline.file_utils import atomic_csv_dump, atomic_json_dump
-from pipeline.compute_climatology import load_wmo_climatology
+from pipeline.compute_climatology import (
+    generate_doy_climatology_series,
+    load_wmo_climatology,
+)
 from pipeline.spatial_geometry import (
     download_and_load_natural_earth_10m,
     compute_cell_areas_km2,
@@ -64,6 +67,10 @@ from pipeline.aps_metrics import (
     willmott_d,
     mean_geodesic_distance,
 )
+from pipeline.validation_metrics import (
+    build_validation_metrics,
+    load_gfs_history,
+)
 
 # La climatología mensual OMM 1994-2023 se carga desde
 # data/processed/wmo_climatology_1994_2023.json. No existe respaldo hardcodeado.
@@ -73,50 +80,8 @@ from pipeline.aps_metrics import (
 # Se importan arriba para conservar los alias de compatibilidad usados por tests
 # y scripts históricos (fit_quadratic_2d, compute_morphology_and_mass_metrics,
 # compute_decoupling_vector, compute_patagonia_box_pressure).
-
-
-def generate_doy_climatology_series(dates_list, climatology=None):
-    """
-    Genera interpolación suave de la normal climatológica mensual OMM 1994–2023
-    para los 366 días julianos del año, cargada desde el JSON canónico.
-    """
-    if climatology is None:
-        climatology = load_wmo_climatology()
-
-    # Puntos medios de cada mes en día del año aproximado
-    mid_month_doy = np.array([15, 45, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349])
-
-    # Envolver para interpolación periódica circular
-    doy_extended = np.concatenate([mid_month_doy - 365, mid_month_doy, mid_month_doy + 365])
-
-    clim_interpolators = {}
-    for var in ["p_max", "lat_core", "lon_core", "lat_centroid", "lon_centroid",
-                "area_1020", "vol_integral", "h_eff", "dist_decoupling_km", "azimuth_deg", "p_patagonia"]:
-        vals = np.asarray(climatology[var], dtype=float)
-        if vals.size != 12 or not np.all(np.isfinite(vals)):
-            raise ValueError(f"La climatología mensual de '{var}' debe tener 12 valores finitos.")
-
-        if var == "azimuth_deg":
-            # Interpolación circular sobre componentes seno/coseno
-            sin_interp = interp1d(
-                doy_extended,
-                np.concatenate([np.sin(np.radians(vals))] * 3),
-                kind="cubic",
-            )
-            cos_interp = interp1d(
-                doy_extended,
-                np.concatenate([np.cos(np.radians(vals))] * 3),
-                kind="cubic",
-            )
-            clim_interpolators[var] = (
-                lambda doy, si=sin_interp, ci=cos_interp:
-                (np.degrees(np.arctan2(si(doy), ci(doy))) + 360.0) % 360.0
-            )
-        else:
-            vals_extended = np.concatenate([vals, vals, vals])
-            clim_interpolators[var] = interp1d(doy_extended, vals_extended, kind='cubic')
-
-    return clim_interpolators
+# La interpolación diaria de la climatología vive en pipeline/compute_climatology.py
+# y se importa arriba para evitar duplicación.
 
 
 def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_year=None, end_year=None):
@@ -338,16 +303,19 @@ def _num_or_none(value, digits):
     return float(round(float(value), digits))
 
 
-def build_dashboard_dataset_v53(df, spatial_grid):
+def build_dashboard_dataset_v53(df, spatial_grid, era5_cache_df=None,
+                                gfs_history_df=None, climatology=None):
     """
     Construye la estructura canónica JSON V5.3 y el DataFrame Multimodelo Consolidado.
     Totalmente libre de Bakun y sustentado en la Climatología Normal OMM 1994–2023.
+    Incluye validation_metrics calculado por fecha exacta desde datos reales.
     """
     dates_list = df["date"].tolist()
     doy_series = df["day_of_year"]
 
     # Climatología canónica cargada desde JSON; falla si no existe.
-    climatology = load_wmo_climatology()
+    if climatology is None:
+        climatology = load_wmo_climatology()
 
     # Interpoladores climatológicos continuos por día del año
     clim_interp = generate_doy_climatology_series(dates_list, climatology)
@@ -439,6 +407,7 @@ def build_dashboard_dataset_v53(df, spatial_grid):
 
     # Asimilar pronóstico GFS solo si trae el esquema V5.3 completo.
     # Nunca se inventan centroides, áreas, volúmenes ni presión Norpatagonia.
+    gfs_forecast_block = None
     gfs_forecast_path = resolve_project_path("data/processed/gfs_forecast_aps.json")
     gfs_required_fields = [
         "dates", "forecast_hours", "p_max_fit", "lat_core", "lon_core",
@@ -508,6 +477,7 @@ def build_dashboard_dataset_v53(df, spatial_grid):
                 },
             }
             models_dict["NOAA GFS Pronóstico"] = gfs_model_data
+            gfs_forecast_block = fc
         except Exception as e:
             print(f"[AVISO] GFS omitido: {e}")
 
@@ -533,6 +503,16 @@ def build_dashboard_dataset_v53(df, spatial_grid):
         "clim_dist_decoupling_km": clim_dist_dec
     })
 
+    # Métricas objetivas de validación (Fase 3): referencias explícitas y
+    # alineación por fecha exacta. Nunca se publican valores sintéticos.
+    validation_rows = build_validation_metrics(
+        df,
+        climatology,
+        gfs_forecast=gfs_forecast_block,
+        gfs_history_frame=gfs_history_df,
+        era5_cache_frame=era5_cache_df if era5_cache_df is not None else df,
+    )
+
     # Dataset JSON final
     dataset = {
         "metadata": {
@@ -543,6 +523,10 @@ def build_dashboard_dataset_v53(df, spatial_grid):
             "last_updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "climatology_period": "1994-2023 (WMO 30-Year Standard Normal)",
             "climatology_source": "data/processed/wmo_climatology_1994_2023.json",
+            "willmott_reference": (
+                "Normal OMM 1994-2023 para concordancia histórica; "
+                "ERA5 verificante para skill de pronóstico"
+            ),
             "domain": {
                 "lat_north": TRACK_LAT_NORTH,
                 "lat_south": TRACK_LAT_SOUTH,
@@ -560,6 +544,7 @@ def build_dashboard_dataset_v53(df, spatial_grid):
         },
         "climatology_monthly": climatology,
         "models": models_dict,
+        "validation_metrics": validation_rows,
         "spatial_grid": spatial_grid
     }
 
@@ -617,7 +602,15 @@ def main():
     spatial_grid = extract_latest_spatial_grid(input_dir, df)
 
     # 4. Construir Dataset JSON y DataFrame Multimodelo
-    dataset, multimodel_df = build_dashboard_dataset_v53(active_df, spatial_grid)
+    gfs_history_df = load_gfs_history(
+        resolve_project_path("data/processed/gfs_forecast_history.csv")
+    )
+    dataset, multimodel_df = build_dashboard_dataset_v53(
+        active_df,
+        spatial_grid,
+        era5_cache_df=df,
+        gfs_history_df=gfs_history_df,
+    )
     dataset["metadata"]["active_window"] = {
         "start_year": args.active_start_year,
         "end_year": args.active_end_year,
