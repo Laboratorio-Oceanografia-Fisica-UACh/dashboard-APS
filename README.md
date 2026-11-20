@@ -264,7 +264,8 @@ Los workflows desatendidos viven en `.github/workflows/`:
 
 Configura en **Settings → Secrets and variables → Actions**:
 
-- `CDSAPI_URL` y `CDSAPI_KEY`: credenciales de Copernicus CDS para `update_era5.yml`.
+- `CDSAPI_KEY`: Token personal de Copernicus CDS para `update_era5.yml` (Ver guía detallada en [docs/GUIA_CREDENCIALES_COPERNICUS.md](docs/GUIA_CREDENCIALES_COPERNICUS.md)).
+- `CDSAPI_URL`: *(Opcional)* URL de la API de Copernicus (por defecto `https://cds.climate.copernicus.eu/api`).
 - Opcionales para el NAS: `TS_AUTHKEY`, `NAS_HOST`, `NAS_USER`, `NAS_DATA_ROOT`, `NAS_SSH_KEY`, `NAS_KNOWN_HOSTS`.
 
 El flujo diario/mensual no depende del NAS: la caché CSV es la fuente de verdad operativa y los NetCDF crudos solo se necesitan para reprocesos completos.

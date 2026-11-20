@@ -109,20 +109,34 @@ def download_month(year, month, target_path, cds_url=None, cds_key=None,
         )
         raise SystemExit(1)
 
-    url = cds_url or os.environ.get("CDSAPI_URL")
+    default_cds_url = "https://cds.climate.copernicus.eu/api"
+    url = cds_url or os.environ.get("CDSAPI_URL") or default_cds_url
     key = cds_key or os.environ.get("CDSAPI_KEY")
-    if not url or not key:
+
+    cdsapirc_path = Path.home() / ".cdsapirc"
+    has_rc_file = cdsapirc_path.exists() or (bool(os.environ.get("CDSAPI_RC")) and Path(os.environ["CDSAPI_RC"]).exists())
+
+    if not key and not has_rc_file:
         print(
-            "[ERROR] Faltan CDSAPI_URL y CDSAPI_KEY. Configúralos como variables "
-            "de entorno o mediante --cds-url/--cds-key."
+            "\n" + "=" * 78 + "\n"
+            "❌ [ERROR DE AUTENTICACIÓN] Falta la clave de API de Copernicus CDS (CDSAPI_KEY).\n"
+            "   Opciones para configurarla:\n"
+            "   1. GitHub Actions: añade el secreto CDSAPI_KEY en Settings -> Secrets.\n"
+            "   2. Entorno local: export CDSAPI_KEY=\"<tu-token-personal>\"\n"
+            "   3. Archivo local: crea ~/.cdsapirc con tu url y key.\n"
+            "   Guía paso a paso: docs/GUIA_CREDENCIALES_COPERNICUS.md\n"
+            + "=" * 78
         )
         raise SystemExit(1)
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = temp_path_for(target_path)
 
-    print(f"📡 [ERA5] Descargando {year}-{month:02d} desde Copernicus CDS...")
-    client = cdsapi.Client(url=url, key=key, timeout=timeout)
+    print(f"📡 [ERA5] Descargando {year}-{month:02d} desde Copernicus CDS ({url})...")
+    if key:
+        client = cdsapi.Client(url=url, key=key, timeout=timeout)
+    else:
+        client = cdsapi.Client(timeout=timeout)
 
     last_error = None
     for legacy in (False, True):

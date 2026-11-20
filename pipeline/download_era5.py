@@ -38,17 +38,19 @@ def is_already_downloaded(filepath):
 
 def check_cds_credentials():
     """
-    Verifica que el usuario tenga configurado ~/.cdsapirc o las variables de entorno CDSAPI_URL y CDSAPI_KEY.
+    Verifica que el usuario tenga configurado ~/.cdsapirc o la variable de entorno CDSAPI_KEY.
+    CDSAPI_URL es opcional y por defecto apunta a la API v2 de Copernicus.
     """
     cdsapirc_path = Path.home() / ".cdsapirc"
-    has_file = cdsapirc_path.exists() or Path(os.environ.get("CDSAPI_RC", "")).exists()
-    has_env = bool(os.environ.get("CDSAPI_KEY") and os.environ.get("CDSAPI_URL"))
+    has_file = cdsapirc_path.exists() or (bool(os.environ.get("CDSAPI_RC")) and Path(os.environ["CDSAPI_RC"]).exists())
+    has_env = bool(os.environ.get("CDSAPI_KEY"))
 
     if not (has_file or has_env):
-        print("\n" + "=" * 70)
+        print("\n" + "=" * 78)
         print("❌ [ERROR DE AUTENTICACIÓN] No se encontraron credenciales de Copernicus CDS.")
-        print("   Configura ~/.cdsapirc o define las variables de entorno CDSAPI_URL y CDSAPI_KEY.")
-        print("=" * 70)
+        print("   Configura ~/.cdsapirc o define la variable de entorno CDSAPI_KEY.")
+        print("   Consulte la guía institucional: docs/GUIA_CREDENCIALES_COPERNICUS.md")
+        print("=" * 78)
         return False
     return True
 

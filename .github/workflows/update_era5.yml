@@ -52,9 +52,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r pipeline/requirements.txt
 
+      - name: Validar secreto CDSAPI_KEY
+        run: |
+          if [ -z "${{ secrets.CDSAPI_KEY }}" ]; then
+            echo "::error title=Falta secreto CDSAPI_KEY::El secreto 'CDSAPI_KEY' no está configurado en el repositorio. La actualización mensual de ERA5 requiere un Personal Access Token gratuito de Copernicus CDS. Consulte docs/GUIA_CREDENCIALES_COPERNICUS.md para agregarlo."
+            exit 1
+          fi
+
       - name: Descargar y procesar el mes ERA5
         env:
-          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL || 'https://cds.climate.copernicus.eu/api' }}
           CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
         run: |
           ARGS=""
