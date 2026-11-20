@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-20T04:55:59.223925+00:00",
+  "generated_at": "2026-11-20T06:23:06.148943+00:00",
   "reference": "ERA5 Reanálisis",
   "skill_type": "forecast_skill_vs_era5",
   "min_pairs": 2,
