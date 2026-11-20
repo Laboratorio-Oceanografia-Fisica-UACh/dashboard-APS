@@ -15,6 +15,9 @@ Valida:
 
 import os
 import sys
+import glob
+import json
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -40,6 +43,15 @@ from pipeline.calculate_aps_metrics import (
     compute_decoupling_vector,
     compute_patagonia_box_pressure
 )
+
+from pipeline.aps_metrics import (
+    classify_regime,
+    REGIME_SYMMETRIC,
+    REGIME_COASTAL,
+    REGIME_BLOCKING,
+    REGIME_WEAK,
+)
+from pipeline.file_utils import atomic_csv_dump, atomic_json_dump
 
 from pipeline.paths import PROJECT_ROOT, resolve_project_path
 
@@ -99,6 +111,71 @@ class TestAPSPhysics(unittest.TestCase):
         self.assertLess(error_lat, 0.02, f"Error en latitud submalla ({error_lat:.4f}°) supera tolerancia de 0.02°")
         self.assertLess(error_lon, 0.02, f"Error en longitud submalla ({error_lon:.4f}°) supera tolerancia de 0.02°")
         self.assertLess(error_p, 0.05, f"Error en presión ajustada ({error_p:.4f} hPa) supera tolerancia de 0.05 hPa")
+
+    def test_fit_quadratic_2d_rejects_pressure_jump(self):
+        """
+        Prueba 1b: El ajuste debe rechazarse si |P_fit - P_disc| >= 3.0 hPa.
+        Se fuerza una presión discreta artificialmente baja para activar la guarda.
+        """
+        true_lat = -33.37
+        true_lon = -95.62
+        true_pmax = 1026.85
+
+        lon_2d, lat_2d = np.meshgrid(self.lons, self.lats)
+        synthetic_field = 1012.0 + (true_pmax - 1012.0) * np.exp(
+            -0.5 * (((lon_2d - true_lon) / 6.0) ** 2 + ((lat_2d - true_lat) / 4.0) ** 2)
+        )
+
+        discrete_idx = np.unravel_index(np.argmax(synthetic_field), synthetic_field.shape)
+        lat_disc = float(self.lats[discrete_idx[0]])
+        lon_disc = float(self.lons[discrete_idx[1]])
+        p_disc = float(synthetic_field[discrete_idx])
+
+        w = 2
+        lat_sub = self.lats[discrete_idx[0] - w: discrete_idx[0] + w + 1]
+        lon_sub = self.lons[discrete_idx[1] - w: discrete_idx[1] + w + 1]
+        slp_sub = synthetic_field[
+            discrete_idx[0] - w: discrete_idx[0] + w + 1,
+            discrete_idx[1] - w: discrete_idx[1] + w + 1,
+        ]
+
+        # Salto de 10 hPa: el ajuste continuo debe ser descartado.
+        p_disc_corrupta = p_disc - 10.0
+        result = fit_quadratic_2d(
+            lat_sub, lon_sub, slp_sub, lat_disc, lon_disc, p_disc_corrupta
+        )
+        self.assertEqual(result, (lat_disc, lon_disc, p_disc_corrupta))
+
+    def test_regime_classification(self):
+        """
+        Prueba 1c: Clasificación sinóptica por distancia y acimut.
+        """
+        self.assertEqual(classify_regime(120.0, 90.0), REGIME_SYMMETRIC)
+        self.assertEqual(classify_regime(500.0, 60.0), REGIME_COASTAL)
+        self.assertEqual(classify_regime(500.0, 180.0), REGIME_BLOCKING)
+        self.assertEqual(classify_regime(500.0, 250.0), REGIME_WEAK)
+        self.assertEqual(classify_regime(np.nan, 90.0), REGIME_WEAK)
+
+    def test_atomic_write(self):
+        """
+        Prueba 1d: Las escrituras atómicas de JSON y CSV no dejan temporales.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            json_path = Path(temp_dir) / "datos.json"
+            csv_path = Path(temp_dir) / "datos.csv"
+
+            atomic_json_dump({"ok": True, "valor": 1.5}, json_path)
+            with open(json_path, "r", encoding="utf-8") as handle:
+                self.assertEqual(json.load(handle), {"ok": True, "valor": 1.5})
+
+            frame = pd.DataFrame({"a": [1, 2], "b": [3.0, 4.0]})
+            atomic_csv_dump(frame, csv_path, index=False)
+            loaded = pd.read_csv(csv_path)
+            self.assertEqual(list(loaded.columns), ["a", "b"])
+            self.assertEqual(loaded.shape, (2, 2))
+
+            leftovers = glob.glob(str(Path(temp_dir) / ".*.part"))
+            self.assertEqual(leftovers, [], f"Quedaron temporales: {leftovers}")
 
     def test_may_collapse_continuity(self):
         """

@@ -32,6 +32,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from pipeline.paths import ensure_parent_dir, resolve_project_path
+from pipeline.file_utils import atomic_csv_dump, atomic_json_dump
+from pipeline.compute_climatology import load_wmo_climatology
 from pipeline.spatial_geometry import (
     download_and_load_natural_earth_10m,
     compute_cell_areas_km2,
@@ -39,193 +41,81 @@ from pipeline.spatial_geometry import (
     normalized_convolution_ocean,
     EARTH_RADIUS_KM
 )
+from pipeline.aps_metrics import (
+    TRACK_LAT_NORTH,
+    TRACK_LAT_SOUTH,
+    TRACK_LON_WEST,
+    TRACK_LON_EAST,
+    PATAGONIA_LAT_MIN,
+    PATAGONIA_LAT_MAX,
+    PATAGONIA_LON_MIN,
+    PATAGONIA_LON_MAX,
+    P_THRESHOLD,
+    R_EARTH_KM,
+    fit_quadratic_2d,
+    compute_morphology_and_mass_metrics,
+    compute_decoupling_vector,
+    compute_patagonia_box_pressure,
+    compute_daily_aps_metrics,
+    classify_regime,
+    rmse,
+    bias,
+    pearson_r,
+    willmott_d,
+    mean_geodesic_distance,
+)
 
-# Dominio geográfico de seguimiento del APS en el Pacífico Suroriental
-# Definido por Dr. José Garcés Vargas: [-48.0°S, -18.0°S] x [-120.0°W, -70.0°W]
-TRACK_LAT_NORTH = -18.0
-TRACK_LAT_SOUTH = -48.0
-TRACK_LON_WEST = -120.0
-TRACK_LON_EAST = -70.0
-
-# Caja Norpatagonia para monitoreo de bloqueos y cuñas hacia los fiordos australes
-PATAGONIA_LAT_MIN = -45.0
-PATAGONIA_LAT_MAX = -41.0
-PATAGONIA_LON_MIN = -78.0
-PATAGONIA_LON_MAX = -72.0
-
-# Climatología mensual normal OMM (1994–2023) - Dr. José Garcés Vargas (LOFA-UACh)
-WMO_CLIMATOLOGY_MONTHLY = {
-    "months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    "p_max": [1024.5, 1023.8, 1022.1, 1020.9, 1019.8, 1021.2, 1023.4, 1025.1, 1026.3, 1026.8, 1025.9, 1024.9],
-    "area_1020": [4.82, 3.95, 2.15, 1.10, 0.42, 1.85, 4.30, 6.75, 8.12, 8.45, 7.20, 5.80],
-    "vol_integral": [12.40, 9.80, 4.60, 2.10, 0.70, 3.90, 10.50, 18.20, 23.40, 25.10, 20.30, 15.60],
-    "h_eff": [2.57, 2.48, 2.14, 1.91, 1.67, 2.11, 2.44, 2.70, 2.88, 2.97, 2.82, 2.69],
-    "lat_core": [-36.20, -35.80, -34.50, -32.80, -31.40, -30.80, -31.20, -32.50, -34.10, -35.60, -36.40, -36.50],
-    "lon_core": [-96.50, -95.20, -92.40, -89.80, -88.20, -89.50, -91.00, -93.80, -96.20, -98.10, -98.50, -97.80],
-    "lat_centroid": [-35.80, -35.20, -34.00, -32.50, -31.20, -30.90, -31.40, -32.80, -34.40, -35.80, -36.10, -36.00],
-    "lon_centroid": [-95.10, -93.80, -91.00, -88.50, -87.40, -88.90, -90.20, -92.90, -95.10, -96.80, -97.00, -96.20],
-    "dist_decoupling_km": [165.2, 172.0, 185.4, 210.1, 245.8, 198.5, 175.2, 168.0, 154.2, 148.5, 152.0, 158.4],
-    "azimuth_deg": [71.5, 73.2, 78.4, 82.1, 88.5, 83.2, 77.0, 72.8, 69.4, 68.2, 70.1, 71.0],
-    "p_patagonia": [1014.8, 1014.2, 1013.9, 1014.5, 1015.2, 1016.1, 1016.8, 1017.2, 1017.0, 1016.4, 1015.6, 1015.0]
-}
+# La climatología mensual OMM 1994-2023 se carga desde
+# data/processed/wmo_climatology_1994_2023.json. No existe respaldo hardcodeado.
 
 
-def fit_quadratic_2d(lat_sub: np.ndarray, lon_sub: np.ndarray, slp_sub: np.ndarray,
-                     lat_disc: float, lon_disc: float, p_disc: float):
-    """
-    Ajusta una parábola multivariable 2D mediante mínimos cuadrados en ventana 5x5:
-    P(x, y) = a*x^2 + b*y^2 + c*x*y + d*x + e*y + f
-    Resuelve el vértice continuo nabla P = 0 validando curvatura negativa en el Hessiano.
-    """
-    lon_grid, lat_grid = np.meshgrid(lon_sub - lon_disc, lat_sub - lat_disc)
-    x = lon_grid.ravel()
-    y = lat_grid.ravel()
-    z = slp_sub.ravel()
-    
-    valid = ~np.isnan(z)
-    if np.sum(valid) < 9:
-        return lat_disc, lon_disc, p_disc
-        
-    x = x[valid]
-    y = y[valid]
-    z = z[valid]
-    
-    M = np.column_stack([x**2, y**2, x*y, x, y, np.ones_like(x)])
-    coeff, _, _, _ = np.linalg.lstsq(M, z, rcond=None)
-    a, b, c, d, e, f = coeff
-    
-    H = np.array([[2.0 * a, c], [c, 2.0 * b]])
-    det_H = 4.0 * a * b - c**2
-    
-    # Concavidad negativa obligatoria (máximo cerrado de presión)
-    if a < 0.0 and b < 0.0 and det_H > 1e-4:
-        grad_indep = np.array([-d, -e])
-        try:
-            x_opt, y_opt = np.linalg.solve(H, grad_indep)
-            if abs(x_opt) <= 0.35 and abs(y_opt) <= 0.35:
-                lon_opt = float(round(lon_disc + x_opt, 2))
-                lat_opt = float(round(lat_disc + y_opt, 2))
-                p_opt = float(round(a*x_opt**2 + b*y_opt**2 + c*x_opt*y_opt + d*x_opt + e*y_opt + f, 2))
-                return lat_opt, lon_opt, p_opt
-        except np.linalg.LinAlgError:
-            pass
-            
-    return lat_disc, lon_disc, p_disc
+# Las funciones físicas del motor común viven en pipeline/aps_metrics.py.
+# Se importan arriba para conservar los alias de compatibilidad usados por tests
+# y scripts históricos (fit_quadratic_2d, compute_morphology_and_mass_metrics,
+# compute_decoupling_vector, compute_patagonia_box_pressure).
 
 
-def compute_morphology_and_mass_metrics(slp_2d: np.ndarray, lats: np.ndarray, lons: np.ndarray,
-                                        cell_areas: np.ndarray, ocean_mask: np.ndarray,
-                                        p_max: float, land_union=None, lat_core=None, lon_core=None):
-    """
-    Calcula: A_1020, I_vol, H_eff y Centroide Barométrico Adaptativo (phi_c, lam_c).
-    Garantiza que el centroide se confine 100% en el océano pacífico.
-    """
-    # 1. Extensión Areal A_1020
-    mask_1020 = ocean_mask & (slp_2d >= 1020.0)
-    a_1020 = float(round(np.sum(cell_areas[mask_1020]) / 1e6, 3))
-    
-    # 2. Integral de Masa/Volumen I_vol
-    overpressure_1020 = np.maximum(slp_2d - 1020.0, 0.0)
-    overpressure_1020[~ocean_mask] = 0.0
-    i_vol = float(round(np.sum(overpressure_1020 * cell_areas) / 1e6, 3))
-    
-    # 3. Espesor Efectivo H_eff
-    h_eff = float(round(i_vol / a_1020, 2)) if a_1020 > 0.05 else 0.0
-    
-    # 4. Centroide Barométrico Adaptativo (resuelve el colapso de mayo)
-    p_ref = 1020.0 if p_max >= 1020.0 else (p_max - 4.0)
-    weights = np.maximum(slp_2d - p_ref, 0.0) * cell_areas
-    weights[~ocean_mask] = 0.0
-    sum_w = np.sum(weights)
-    
-    if sum_w > 0.0:
-        lon_grid, lat_grid = np.meshgrid(lons, lats)
-        lat_c = float(round(np.sum(lat_grid * weights) / sum_w, 2))
-        lon_c = float(round(np.sum(lon_grid * weights) / sum_w, 2))
-
-        # Salvaguarda de curvatura costera en el centroide de masa
-        if land_union is not None:
-            import shapely
-            if shapely.contains_xy(land_union, [lon_c], [lat_c])[0]:
-                dist_sq = (lat_grid - lat_c)**2 + (lon_grid - lon_c)**2
-                valid_ocean = ocean_mask & (weights > 0)
-                if np.any(valid_ocean):
-                    best_idx = np.unravel_index(np.argmin(np.where(valid_ocean, dist_sq, np.inf)), weights.shape)
-                    lat_c = float(round(lats[best_idx[0]], 2))
-                    lon_c = float(round(lons[best_idx[1]], 2))
-                elif lat_core is not None:
-                    lat_c, lon_c = lat_core, lon_core
-    else:
-        lat_c, lon_c = np.nan, np.nan
-        
-    return a_1020, i_vol, h_eff, lat_c, lon_c
-
-
-def compute_decoupling_vector(lat_core: float, lon_core: float, lat_cent: float, lon_cent: float):
-    """
-    Calcula distancia geodésica núcleo-centroide D_nc (km) y rumbo náutico theta (grados).
-    """
-    if np.isnan(lat_cent) or np.isnan(lon_cent):
-        return 0.0, 0.0
-        
-    phi1 = np.radians(lat_core)
-    phi2 = np.radians(lat_cent)
-    d_phi = np.radians(lat_cent - lat_core)
-    d_lam = np.radians(lon_cent - lon_core)
-    
-    # Haversine ortodrómica
-    a = np.sin(d_phi / 2.0)**2 + np.cos(phi1) * np.cos(phi2) * np.sin(d_lam / 2.0)**2
-    dist_km = float(round(2.0 * EARTH_RADIUS_KM * np.arcsin(np.sqrt(np.clip(a, 0.0, 1.0))), 1))
-    
-    # Rumbo náutico esférico (bearing)
-    y = np.sin(d_lam) * np.cos(phi2)
-    x = np.cos(phi1) * np.sin(phi2) - np.sin(phi1) * np.cos(phi2) * np.cos(d_lam)
-    theta = float(round((np.degrees(np.arctan2(y, x)) + 360.0) % 360.0, 1))
-    
-    return dist_km, theta
-
-
-def compute_patagonia_box_pressure(slp_2d: np.ndarray, lats: np.ndarray, lons: np.ndarray):
-    """
-    Calcula la presión media ponderada esféricamente en Caja Norpatagonia
-    [-45.0°S, -41.0°S] x [-78.0°W, -72.0°W].
-    """
-    lat_mask = (lats >= PATAGONIA_LAT_MIN) & (lats <= PATAGONIA_LAT_MAX)
-    lon_mask = (lons >= PATAGONIA_LON_MIN) & (lons <= PATAGONIA_LON_MAX)
-    
-    sub = slp_2d[np.ix_(lat_mask, lon_mask)]
-    sub_lats = lats[lat_mask]
-    cos_w = np.cos(np.radians(sub_lats))[:, None]
-    cos_w_2d = np.repeat(cos_w, np.sum(lon_mask), axis=1)
-    
-    valid = ~np.isnan(sub)
-    if np.sum(valid) > 0:
-        p_box = float(round(np.sum(sub[valid] * cos_w_2d[valid]) / np.sum(cos_w_2d[valid]), 2))
-    else:
-        p_box = np.nan
-        
-    return p_box
-
-
-def generate_doy_climatology_series(dates_list):
+def generate_doy_climatology_series(dates_list, climatology=None):
     """
     Genera interpolación suave de la normal climatológica mensual OMM 1994–2023
-    para los 366 días julianos del año.
+    para los 366 días julianos del año, cargada desde el JSON canónico.
     """
-    months = np.array(WMO_CLIMATOLOGY_MONTHLY["months"])
+    if climatology is None:
+        climatology = load_wmo_climatology()
+
     # Puntos medios de cada mes en día del año aproximado
     mid_month_doy = np.array([15, 45, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349])
-    
+
     # Envolver para interpolación periódica circular
     doy_extended = np.concatenate([mid_month_doy - 365, mid_month_doy, mid_month_doy + 365])
-    
+
     clim_interpolators = {}
     for var in ["p_max", "lat_core", "lon_core", "lat_centroid", "lon_centroid",
                 "area_1020", "vol_integral", "h_eff", "dist_decoupling_km", "azimuth_deg", "p_patagonia"]:
-        vals = np.array(WMO_CLIMATOLOGY_MONTHLY[var])
-        vals_extended = np.concatenate([vals, vals, vals])
-        clim_interpolators[var] = interp1d(doy_extended, vals_extended, kind='cubic')
-        
+        vals = np.asarray(climatology[var], dtype=float)
+        if vals.size != 12 or not np.all(np.isfinite(vals)):
+            raise ValueError(f"La climatología mensual de '{var}' debe tener 12 valores finitos.")
+
+        if var == "azimuth_deg":
+            # Interpolación circular sobre componentes seno/coseno
+            sin_interp = interp1d(
+                doy_extended,
+                np.concatenate([np.sin(np.radians(vals))] * 3),
+                kind="cubic",
+            )
+            cos_interp = interp1d(
+                doy_extended,
+                np.concatenate([np.cos(np.radians(vals))] * 3),
+                kind="cubic",
+            )
+            clim_interpolators[var] = (
+                lambda doy, si=sin_interp, ci=cos_interp:
+                (np.degrees(np.arctan2(si(doy), ci(doy))) + 360.0) % 360.0
+            )
+        else:
+            vals_extended = np.concatenate([vals, vals, vals])
+            clim_interpolators[var] = interp1d(doy_extended, vals_extended, kind='cubic')
+
     return clim_interpolators
 
 
@@ -330,48 +220,14 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
                     date_str = str(t)[:10]
                     grid_raw = daily_da[i].values.copy()
 
-                    # Convolución normalizada marina (sin efecto muro costero)
-                    smoothed = normalized_convolution_ocean(grid_raw, ocean_mask, sigma=1.0)
-
-                    # 1. Búsqueda discreta en mar abierto
-                    max_idx = np.unravel_index(np.nanargmax(smoothed), smoothed.shape)
-                    lat_disc = float(lats[max_idx[0]])
-                    lon_disc = float(lons[max_idx[1]])
-                    p_disc = float(grid_raw[max_idx])
-
-                    # 2. Ajuste parabólico 2D submalla (fit_quadratic_2d)
-                    w = 2
-                    r_min = max(0, max_idx[0] - w)
-                    r_max = min(len(lats), max_idx[0] + w + 1)
-                    c_min = max(0, max_idx[1] - w)
-                    c_max = min(len(lons), max_idx[1] + w + 1)
-
-                    lat_sub = lats[r_min:r_max]
-                    lon_sub = lons[c_min:c_max]
-                    slp_sub = smoothed[r_min:r_max, c_min:c_max]
-
-                    lat_core, lon_core, p_max_fit = fit_quadratic_2d(
-                        lat_sub, lon_sub, slp_sub, lat_disc, lon_disc, p_disc
+                    metrics = compute_daily_aps_metrics(
+                        grid_raw, lats, lons, date=date_str,
+                        land_union=land_union, cell_areas=dA,
+                        ocean_mask=ocean_mask, sigma=1.0,
                     )
-
-                    # Salvaguarda física costera: si el ajuste submalla cruza la costa hacia tierra,
-                    # mantener el vértice en el nodo marino discreto observado
-                    if land_union is not None:
-                        import shapely
-                        if shapely.contains_xy(land_union, [lon_core], [lat_core])[0]:
-                            lat_core, lon_core, p_max_fit = lat_disc, lon_disc, p_disc
-
-                    # 3. Morfología, Masa y Centroide Adaptativo
-                    a_1020, i_vol, h_eff, lat_cent, lon_cent = compute_morphology_and_mass_metrics(
-                        smoothed, lats, lons, dA, ocean_mask, p_max_fit,
-                        land_union=land_union, lat_core=lat_core, lon_core=lon_core
-                    )
-
-                    # 4. Vector de Desacople Físico (D_nc, theta)
-                    dist_km, theta = compute_decoupling_vector(lat_core, lon_core, lat_cent, lon_cent)
-
-                    # 5. Caja Norpatagonia
-                    p_pat = compute_patagonia_box_pressure(smoothed, lats, lons)
+                    if metrics is None:
+                        print(f"⚠️  Sin puntos oceánicos válidos para {date_str}; se omite.")
+                        continue
 
                     dt = pd.to_datetime(date_str)
                     new_rows.append({
@@ -380,17 +236,17 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
                         "month": dt.month,
                         "day": dt.day,
                         "day_of_year": dt.dayofyear,
-                        "p_max_fit": p_max_fit,
-                        "lat_core": lat_core,
-                        "lon_core": lon_core,
-                        "lat_centroid": lat_cent,
-                        "lon_centroid": lon_cent,
-                        "area_1020": a_1020,
-                        "vol_integral": i_vol,
-                        "h_eff": h_eff,
-                        "dist_decoupling_km": dist_km,
-                        "azimuth_deg": theta,
-                        "p_patagonia": p_pat
+                        "p_max_fit": metrics["p_max_fit"],
+                        "lat_core": metrics["lat_core"],
+                        "lon_core": metrics["lon_core"],
+                        "lat_centroid": metrics["lat_centroid"],
+                        "lon_centroid": metrics["lon_centroid"],
+                        "area_1020": metrics["area_1020"],
+                        "vol_integral": metrics["vol_integral"],
+                        "h_eff": metrics["h_eff"],
+                        "dist_decoupling_km": metrics["dist_decoupling_km"],
+                        "azimuth_deg": metrics["azimuth_deg"],
+                        "p_patagonia": metrics["p_patagonia"],
                     })
 
         except Exception as e:
@@ -411,9 +267,8 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
     else:
         return None
 
-    # Guardar caché
-    ensure_parent_dir(cache_csv_path)
-    combined_df.to_csv(cache_csv_path, index=False)
+    # Guardar caché con escritura atómica
+    atomic_csv_dump(combined_df, cache_csv_path, index=False)
     print(f"✅ [CACHÉ V5.3] Base consolidada con {len(combined_df)} días guardada en {cache_csv_path}")
 
     return combined_df
@@ -490,9 +345,12 @@ def build_dashboard_dataset_v53(df, spatial_grid):
     """
     dates_list = df["date"].tolist()
     doy_series = df["day_of_year"]
-    
+
+    # Climatología canónica cargada desde JSON; falla si no existe.
+    climatology = load_wmo_climatology()
+
     # Interpoladores climatológicos continuos por día del año
-    clim_interp = generate_doy_climatology_series(dates_list)
+    clim_interp = generate_doy_climatology_series(dates_list, climatology)
     
     clim_p_max = [_num_or_none(clim_interp["p_max"](d), 2) for d in doy_series]
     clim_lat_core = [_num_or_none(clim_interp["lat_core"](d), 2) for d in doy_series]
@@ -579,87 +437,79 @@ def build_dashboard_dataset_v53(df, spatial_grid):
         "Climatología Normal OMM": clim_model
     }
 
-    # Asimilar Pronóstico GFS si existe
+    # Asimilar pronóstico GFS solo si trae el esquema V5.3 completo.
+    # Nunca se inventan centroides, áreas, volúmenes ni presión Norpatagonia.
     gfs_forecast_path = resolve_project_path("data/processed/gfs_forecast_aps.json")
-    gfs_skill = None
+    gfs_required_fields = [
+        "dates", "forecast_hours", "p_max_fit", "lat_core", "lon_core",
+        "lat_centroid", "lon_centroid", "area_1020", "vol_integral", "h_eff",
+        "dist_decoupling_km", "azimuth_deg", "p_patagonia", "regime",
+    ]
     if os.path.exists(gfs_forecast_path):
         try:
             with open(gfs_forecast_path, "r", encoding="utf-8") as gf:
                 gfs_json = json.load(gf)
-                if "forecast" in gfs_json:
-                    fc = gfs_json["forecast"]
-                    
-                    # Interpolar campos faltantes si el json antiguo no tenía las métricas completas
-                    fc_dates = fc["dates"]
-                    fc_p_max = fc.get("p_max_fit", fc.get("pressure_psa", []))
-                    fc_lat_core = fc.get("lat_core", fc.get("lat", []))
-                    fc_lon_core = fc.get("lon_core", fc.get("lon", []))
-                    
-                    # Si no trae centroide o área, usar aproximaciones proporcionales basadas en la relación observada
-                    fc_lat_cent = fc.get("lat_centroid", [round(l + 0.6, 2) for l in fc_lat_core])
-                    fc_lon_cent = fc.get("lon_centroid", [round(l + 1.8, 2) for l in fc_lon_core])
-                    fc_area_1020 = fc.get("area_1020", [round(max(0.0, (p - 1019.5) * 1.5), 3) for p in fc_p_max])
-                    fc_vol = fc.get("vol_integral", [round(a * 2.6, 3) for a in fc_area_1020])
-                    fc_h_eff = fc.get("h_eff", [round(v / a, 2) if a > 0.05 else 0.0 for v, a in zip(fc_vol, fc_area_1020)])
-                    
-                    fc_d_dec = []
-                    fc_az = []
-                    for l1, o1, l2, o2 in zip(fc_lat_core, fc_lon_core, fc_lat_cent, fc_lon_cent):
-                        d, az = compute_decoupling_vector(l1, o1, l2, o2)
-                        fc_d_dec.append(d)
-                        fc_az.append(az)
-                        
-                    fc_pat = fc.get("p_patagonia", [1016.0] * len(fc_dates))
+            fc = gfs_json.get("forecast")
+            if not isinstance(fc, dict):
+                raise KeyError("El JSON GFS no contiene el bloque 'forecast'.")
 
-                    gfs_model_data = {
-                        "id": "noaa_gfs_forecast",
-                        "name": "NOAA GFS Operativo (+7 Días)",
-                        "description": f"Pronóstico sinóptico global del National Centers for Environmental Prediction (Ciclo {gfs_json.get('cycle', '00Z')})",
-                        "is_forecast": True,
-                        "dates": fc_dates,
-                        "p_max_fit": fc_p_max,
-                        "lat_core": fc_lat_core,
-                        "lon_core": fc_lon_core,
-                        "lat_centroid": fc_lat_cent,
-                        "lon_centroid": fc_lon_cent,
-                        "area_1020": fc_area_1020,
-                        "vol_integral": fc_vol,
-                        "h_eff": fc_h_eff,
-                        "dist_decoupling_km": fc_d_dec,
-                        "azimuth_deg": fc_az,
-                        "p_patagonia": fc_pat,
-                        "latest": {
-                            "date": fc_dates[-1],
-                            "p_max_fit": fc_p_max[-1],
-                            "lat_core": fc_lat_core[-1],
-                            "lon_core": fc_lon_core[-1],
-                            "lat_centroid": fc_lat_cent[-1],
-                            "lon_centroid": fc_lon_cent[-1],
-                            "area_1020": fc_area_1020[-1],
-                            "vol_integral": fc_vol[-1],
-                            "h_eff": fc_h_eff[-1],
-                            "dist_decoupling_km": fc_d_dec[-1],
-                            "azimuth_deg": fc_az[-1],
-                            "p_patagonia": fc_pat[-1]
-                        }
-                    }
-                    models_dict["NOAA GFS Pronóstico"] = gfs_model_data
+            missing = [key for key in gfs_required_fields if key not in fc]
+            if missing:
+                raise KeyError(
+                    "El JSON GFS está incompleto; faltan campos V5.3: "
+                    + ", ".join(missing)
+                    + ". Regenéralo con pipeline/download_gfs_forecast.py."
+                )
 
-                    # Cálculo honesto de métricas de validación frente a la climatología
-                    ref_p = [float(clim_interp["p_max"](pd.to_datetime(d).dayofyear)) for d in fc_dates]
-                    fc_p_arr = np.array(fc_p_max)
-                    ref_p_arr = np.array(ref_p)
-                    
-                    rmse_g = float(round(np.sqrt(np.mean((fc_p_arr - ref_p_arr)**2)), 2))
-                    bias_g = float(round(np.mean(fc_p_arr - ref_p_arr), 2))
-                    
-                    gfs_skill = {
-                        "rmse": f"{rmse_g} hPa",
-                        "bias": f"{bias_g:+} hPa",
-                        "willmott": "0.942"
-                    }
+            lengths = {
+                key: len(fc[key]) for key in gfs_required_fields
+            }
+            if len(set(lengths.values())) != 1:
+                raise ValueError(f"El JSON GFS tiene longitudes inconsistentes: {lengths}")
+
+            gfs_model_data = {
+                "id": "noaa_gfs_forecast",
+                "name": "NOAA GFS Operativo (+7 Días)",
+                "description": (
+                    "Pronóstico sinóptico global del National Centers for Environmental "
+                    f"Prediction (Ciclo {gfs_json.get('cycle', 'N/D')})"
+                ),
+                "is_forecast": True,
+                "cycle": gfs_json.get("cycle"),
+                "forecast_hours": fc["forecast_hours"],
+                "dates": fc["dates"],
+                "p_max_fit": fc["p_max_fit"],
+                "lat_core": fc["lat_core"],
+                "lon_core": fc["lon_core"],
+                "lat_centroid": fc["lat_centroid"],
+                "lon_centroid": fc["lon_centroid"],
+                "area_1020": fc["area_1020"],
+                "vol_integral": fc["vol_integral"],
+                "h_eff": fc["h_eff"],
+                "dist_decoupling_km": fc["dist_decoupling_km"],
+                "azimuth_deg": fc["azimuth_deg"],
+                "p_patagonia": fc["p_patagonia"],
+                "regime": fc["regime"],
+                "latest": {
+                    "date": fc["dates"][-1],
+                    "forecast_hours": fc["forecast_hours"][-1],
+                    "p_max_fit": fc["p_max_fit"][-1],
+                    "lat_core": fc["lat_core"][-1],
+                    "lon_core": fc["lon_core"][-1],
+                    "lat_centroid": fc["lat_centroid"][-1],
+                    "lon_centroid": fc["lon_centroid"][-1],
+                    "area_1020": fc["area_1020"][-1],
+                    "vol_integral": fc["vol_integral"][-1],
+                    "h_eff": fc["h_eff"][-1],
+                    "dist_decoupling_km": fc["dist_decoupling_km"][-1],
+                    "azimuth_deg": fc["azimuth_deg"][-1],
+                    "p_patagonia": fc["p_patagonia"][-1],
+                    "regime": fc["regime"][-1],
+                },
+            }
+            models_dict["NOAA GFS Pronóstico"] = gfs_model_data
         except Exception as e:
-            print(f"[AVISO] No se pudo integrar el pronóstico GFS: {e}")
+            print(f"[AVISO] GFS omitido: {e}")
 
     # DataFrame Multimodelo Consolidado para descarga científica directa
     multimodel_df = pd.DataFrame({
@@ -692,6 +542,7 @@ def build_dashboard_dataset_v53(df, spatial_grid):
             "version": "5.3",
             "last_updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "climatology_period": "1994-2023 (WMO 30-Year Standard Normal)",
+            "climatology_source": "data/processed/wmo_climatology_1994_2023.json",
             "domain": {
                 "lat_north": TRACK_LAT_NORTH,
                 "lat_south": TRACK_LAT_SOUTH,
@@ -707,7 +558,7 @@ def build_dashboard_dataset_v53(df, spatial_grid):
                 "bearing": "grados náuticos (0=N, 90=E, 180=S, 270=W)"
             }
         },
-        "climatology_monthly": WMO_CLIMATOLOGY_MONTHLY,
+        "climatology_monthly": climatology,
         "models": models_dict,
         "spatial_grid": spatial_grid
     }
@@ -726,7 +577,11 @@ def main():
     parser.add_argument("--recompute-all", action="store_true", help="Fuerza reprocesamiento completo ignorando caché previa")
     parser.add_argument("--start-year", type=int, default=None, help="Año de inicio de procesamiento")
     parser.add_argument("--end-year", type=int, default=None, help="Año final de procesamiento")
-    
+    parser.add_argument("--active-start-year", type=int, default=1993,
+                        help="Primer año publicado en JSON y CSVs web (por defecto 1993)")
+    parser.add_argument("--active-end-year", type=int, default=datetime.date.today().year,
+                        help="Último año publicado en JSON y CSVs web (por defecto el año actual)")
+
     args = parser.parse_args()
 
     # Resolver rutas una sola vez: relativas a la raíz del proyecto, absolutas tal cual.
@@ -748,31 +603,42 @@ def main():
         print("        Descarga primero los datos ERA5 con pipeline/download_era5.py.")
         sys.exit(1)
 
-    # 2. Rejilla espacial 2D más reciente
+    # 2. Ventana activa publicada: el caché completo se conserva en data/processed.
+    active_df = df[
+        (df["year"] >= args.active_start_year)
+        & (df["year"] <= args.active_end_year)
+    ].copy().reset_index(drop=True)
+
+    if len(active_df) == 0:
+        print(f"[ERROR] La ventana activa {args.active_start_year}-{args.active_end_year} no contiene datos.")
+        sys.exit(1)
+
+    # 3. Rejilla espacial 2D más reciente
     spatial_grid = extract_latest_spatial_grid(input_dir, df)
 
-    # 3. Construir Dataset JSON y DataFrame Multimodelo
-    dataset, multimodel_df = build_dashboard_dataset_v53(df, spatial_grid)
+    # 4. Construir Dataset JSON y DataFrame Multimodelo
+    dataset, multimodel_df = build_dashboard_dataset_v53(active_df, spatial_grid)
+    dataset["metadata"]["active_window"] = {
+        "start_year": args.active_start_year,
+        "end_year": args.active_end_year,
+        "start_date": str(active_df.iloc[0]["date"]),
+        "end_date": str(active_df.iloc[-1]["date"]),
+        "n_days": int(len(active_df)),
+    }
 
-    # 4. Guardar salidas en data/processed/ y web/data/
-    ensure_parent_dir(output_path)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(dataset, f, indent=2, ensure_ascii=False, allow_nan=False)
+    # 5. Guardar salidas en data/processed/ y web/data/ con escritura atómica
+    atomic_json_dump(dataset, output_path, indent=2, ensure_ascii=False, allow_nan=False)
     print(f"✅ [ÉXITO] Archivo web generado en: {output_path}")
 
     web_json_path = resolve_project_path("web/data/latest_aps_data.json")
-    ensure_parent_dir(web_json_path)
-    with open(web_json_path, "w", encoding="utf-8") as f:
-        json.dump(dataset, f, indent=2, ensure_ascii=False, allow_nan=False)
+    atomic_json_dump(dataset, web_json_path, indent=2, ensure_ascii=False, allow_nan=False)
     print(f"✅ [ÉXITO] Copia frontend generada en: {web_json_path}")
 
     web_csv_path = resolve_project_path("web/data/era5_daily_aps_metrics.csv")
-    ensure_parent_dir(web_csv_path)
-    df.to_csv(web_csv_path, index=False)
+    atomic_csv_dump(active_df, web_csv_path, index=False)
 
     multimodel_csv_path = resolve_project_path("web/data/aps_multimodel_metrics_lofa.csv")
-    ensure_parent_dir(multimodel_csv_path)
-    multimodel_df.to_csv(multimodel_csv_path, index=False)
+    atomic_csv_dump(multimodel_df, multimodel_csv_path, index=False)
     print(f"✅ [ÉXITO] CSV Multimodelo consolidado para descarga disponible en: {multimodel_csv_path}")
 
 

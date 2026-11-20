@@ -1,69 +1,79 @@
 #!/usr/bin/env python3
 """
-download_gfs_forecast.py
-Descargador automatizado de pronósticos operativos a 7 días de NOAA GFS (Global Forecast System)
-para el Anticiclón del Pacífico Sur (APS).
-Sin cuentas, sin API keys (Acceso público directo a NOAA NOMADS).
+Descargador automatizado de pronósticos operativos a 7 días de NOAA GFS
+(Global Forecast System) para el Anticiclón del Pacífico Sur (APS).
 Laboratorio de Oceanografía Física (LOFA) - Universidad Austral de Chile (UACh)
 Licencia: GNU AGPLv3
+
+El dominio de descarga es amplio, pero el recorte y todas las métricas V5.3
+se calculan estrictamente en [-48°S, -18°S] x [-120°W, -70°W], con la misma
+física del motor común y la máscara Natural Earth 10m usada por ERA5.
 """
 
-import os
-import sys
-import re
-import json
 import argparse
 import datetime
 import importlib.util
+import json
+import os
+import re
+import sys
+import time
 from pathlib import Path
 
-import requests
 import numpy as np
+import requests
 
 # Asegurar importación de los módulos del pipeline
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pipeline.file_utils import is_nonempty_file, temp_path_for
-from pipeline.paths import ensure_parent_dir, resolve_project_path
+from pipeline.aps_metrics import (
+    TRACK_LAT_NORTH,
+    TRACK_LAT_SOUTH,
+    TRACK_LON_WEST,
+    TRACK_LON_EAST,
+    compute_daily_aps_metrics,
+)
+from pipeline.file_utils import (
+    atomic_csv_dump,
+    atomic_json_dump,
+    is_nonempty_file,
+    temp_path_for,
+)
+from pipeline.paths import resolve_project_path
+from pipeline.spatial_geometry import download_and_load_natural_earth_10m
 
-# Dominio geográfico de descarga GFS
+# Dominio amplio de descarga GFS (recorte posterior al dominio ERA5)
 LAT_NORTH = -10
 LAT_SOUTH = -56
 LON_WEST = -130
 LON_EAST = -65
 
-# Dominio oceánico estricto para rastreo del centro bárico (excluye Los Andes/continente)
-TRACK_LAT_NORTH = -18.0
-TRACK_LAT_SOUTH = -54.0
-TRACK_LON_WEST = -125.0
-TRACK_LON_EAST = -68.0
-
-
-def get_pacific_coastline_lon(lat):
-    """
-    Retorna la longitud del límite costero oriental del Océano Pacífico para una latitud dada.
-    Puntos al este corresponden a tierra continental y se enmascaran.
-    """
-    ref_lats = np.array([
-        -10.0, -12.0, -14.0, -16.0, -18.0,
-        -20.0, -24.0, -28.0, -30.0, -33.0,
-        -35.0, -37.0, -39.0, -41.0, -43.0,
-        -45.0, -46.5, -48.0, -50.0, -52.0,
-        -54.0, -56.0
-    ])
-    ref_lons = np.array([
-        -78.2, -77.2, -76.2, -74.0, -71.2,
-        -70.15, -70.4, -71.0, -71.35, -71.65,
-        -72.3, -73.5, -73.4, -73.8, -74.2,
-        -74.8, -75.7, -75.3, -75.4, -75.3,
-        -73.5, -68.5
-    ])
-    return np.interp(lat, ref_lats[::-1], ref_lons[::-1])
-
-
+FORECAST_HOURS = [0, 24, 48, 72, 96, 120, 144, 168]
 NOMADS_BASE = "https://nomads.ncep.noaa.gov"
+REQUEST_TIMEOUT = 60
+MAX_RETRIES = 3
+BACKOFF_BASE = 2.0
+
+FORECAST_FIELDS = [
+    "dates",
+    "forecast_hours",
+    "p_max_fit",
+    "lat_core",
+    "lon_core",
+    "lat_centroid",
+    "lon_centroid",
+    "area_1020",
+    "vol_integral",
+    "h_eff",
+    "dist_decoupling_km",
+    "azimuth_deg",
+    "p_patagonia",
+    "regime",
+]
+
+ARCHIVE_COLUMNS = ["cycle", "generated_at"] + FORECAST_FIELDS
 
 
 def check_gfs_dependencies():
@@ -80,149 +90,307 @@ def check_gfs_dependencies():
         print("=" * 70)
         print("Instala las dependencias con:")
         print("  pip install -r pipeline/requirements.txt")
-        print("o directamente:")
-        print("  pip install xarray cfgrib eccodes")
         return False
     return True
 
 
-def get_latest_gfs_cycle():
+def _request_with_retries(url, timeout=REQUEST_TIMEOUT, retries=MAX_RETRIES,
+                          backoff=BACKOFF_BASE):
     """
-    Identifica la fecha y ciclo (00, 06, 12, 18z) más reciente y disponible en NOAA NOMADS.
+    Realiza una petición HTTP con reintentos y retroceso exponencial.
+    Retorna la respuesta si el código es 200, o None si se agotan los intentos.
+    """
+    for attempt in range(max(1, retries)):
+        try:
+            response = requests.get(url, timeout=timeout)
+            if response.status_code == 200:
+                return response
+            print(
+                f"⚠️  HTTP {response.status_code} en intento {attempt + 1}/{retries}: "
+                f"{url[:120]}"
+            )
+        except requests.RequestException as error:
+            print(f"⚠️  Error de red en intento {attempt + 1}/{retries}: {error}")
+        if attempt < retries - 1:
+            time.sleep(backoff * (2 ** attempt))
+    return None
+
+
+def _parse_forced_cycle(cycle_text):
+    """
+    Parsea un ciclo forzado 'YYYYMMDD HHZ' o 'YYYYMMDD HH' a (fecha, hora).
+    """
+    cleaned = cycle_text.strip().upper().replace("Z", "")
+    match = re.match(r"^(\d{8})\s+(\d{1,2})$", cleaned)
+    if not match:
+        raise ValueError("El ciclo debe tener el formato 'YYYYMMDD HHZ' o 'YYYYMMDD HH'.")
+    date_str = match.group(1)
+    cycle_str = f"{int(match.group(2)):02d}"
+    return date_str, cycle_str
+
+
+def get_latest_gfs_cycle(timeout=REQUEST_TIMEOUT, retries=MAX_RETRIES):
+    """
+    Identifica la fecha y ciclo (00, 06, 12, 18Z) más reciente disponible
+    en NOAA NOMADS.
     """
     print("[INFO] Consultando ciclos disponibles en NOAA NOMADS...")
     try:
-        r = requests.get(f"{NOMADS_BASE}/pub/data/nccf/com/gfs/prod/", timeout=10)
-        dates = re.findall(r'href="(gfs\.\d{8})/"', r.text)
+        response = _request_with_retries(
+            f"{NOMADS_BASE}/pub/data/nccf/com/gfs/prod/",
+            timeout=timeout, retries=retries,
+        )
+        if response is None:
+            raise ValueError("No se pudo consultar el índice de GFS.")
+
+        dates = re.findall(r'href="(gfs\.\d{8})/"', response.text)
         if not dates:
             raise ValueError("No se encontraron carpetas de GFS en el servidor.")
-        
+
         latest_date_folder = dates[-1].replace("gfs.", "")
-        # Verificar ciclos de hoy o ayer
-        cycles = ["18", "12", "06", "00"]
-        for c in cycles:
-            check_url = f"{NOMADS_BASE}/cgi-bin/filter_gfs_0p25.pl?dir=%2Fgfs.{latest_date_folder}%2F{c}%2Fatmos"
-            res = requests.get(check_url, timeout=5)
-            if res.status_code == 200 and "gfs.t" in res.text:
-                return latest_date_folder, c
-        
-        # Si la fecha más reciente aún no tiene subidas completas, probar con la anterior
-        prev_date_folder = dates[-2].replace("gfs.", "") if len(dates) >= 2 else dates[-1].replace("gfs.", "")
-        return prev_date_folder, "00"
-    except Exception as e:
-        print(f"[AVISO] Error consultando índice de ciclos ({e}). Usando ciclo estimado.")
-        yesterday = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)).strftime("%Y%m%d")
+        for cycle in ["18", "12", "06", "00"]:
+            check_url = (
+                f"{NOMADS_BASE}/cgi-bin/filter_gfs_0p25.pl"
+                f"?dir=%2Fgfs.{latest_date_folder}%2F{cycle}%2Fatmos"
+            )
+            result = _request_with_retries(check_url, timeout=timeout, retries=1)
+            if result is not None and "gfs.t" in result.text:
+                return latest_date_folder, cycle
+
+        previous = dates[-2].replace("gfs.", "") if len(dates) >= 2 else latest_date_folder
+        return previous, "00"
+    except Exception as error:
+        print(f"[AVISO] Error consultando ciclos ({error}). Usando ciclo estimado.")
+        yesterday = (
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+        ).strftime("%Y%m%d")
         return yesterday, "00"
 
 
-def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir):
+def _normalize_and_crop_grid(pressure, lats, lons):
     """
-    Descarga los pasos de pronóstico de 0 a 168 horas (7 días) para la variable PRMSL.
+    Normaliza longitudes a [-180, 180], ordena la grilla y recorta al dominio
+    de seguimiento ERA5 [-48°S, -18°S] x [-120°W, -70°W].
     """
-    try:
-        import xarray as xr
-    except ImportError:
-        print("[ERROR] Se requiere xarray y cfgrib. Ejecuta: pip install xarray cfgrib eccodes")
-        sys.exit(1)
+    lats = np.asarray(lats, dtype=float)
+    lons = np.asarray(lons, dtype=float)
+    pressure = np.asarray(pressure, dtype=float)
 
+    lons = ((lons + 180.0) % 360.0) - 180.0
+
+    lat_order = np.argsort(lats)
+    lon_order = np.argsort(lons)
+    lats = lats[lat_order]
+    lons = lons[lon_order]
+    pressure = pressure[np.ix_(lat_order, lon_order)]
+
+    lat_mask = (lats >= TRACK_LAT_SOUTH) & (lats <= TRACK_LAT_NORTH)
+    lon_mask = (lons >= TRACK_LON_WEST) & (lons <= TRACK_LON_EAST)
+
+    lats = lats[lat_mask]
+    lons = lons[lon_mask]
+    pressure = pressure[np.ix_(lat_mask, lon_mask)]
+
+    return pressure, lats, lons
+
+
+def _extract_metrics_from_grib(grib_path, land_union):
+    """
+    Lee un GRIB2, recorta al dominio ERA5 y calcula las métricas V5.3
+    con el motor común y convolución marina normalizada sigma=1.0.
+    """
+    import xarray as xr
+
+    with xr.open_dataset(os.fspath(grib_path), engine="cfgrib") as ds:
+        pressure = (ds["prmsl"] / 100.0).values
+        lats = ds["latitude"].values
+        lons = ds["longitude"].values
+
+    pressure, lats, lons = _normalize_and_crop_grid(pressure, lats, lons)
+    if pressure.size == 0:
+        return None
+
+    return compute_daily_aps_metrics(
+        pressure, lats, lons,
+        land_union=land_union,
+        sigma=1.0,
+    )
+
+
+def _download_step(date_str, cycle_str, f_step, target_grib,
+                   timeout=REQUEST_TIMEOUT, retries=MAX_RETRIES):
+    """
+    Descarga un paso GFS de forma atómica. Retorna True si el archivo es válido.
+    """
+    f_str = f"{f_step:03d}"
+    url = (
+        f"{NOMADS_BASE}/cgi-bin/filter_gfs_0p25.pl"
+        f"?dir=%2Fgfs.{date_str}%2F{cycle_str}%2Fatmos"
+        f"&file=gfs.t{cycle_str}z.pgrb2.0p25.f{f_str}"
+        f"&var_PRMSL=on"
+        f"&subregion=on"
+        f"&toplat={LAT_NORTH}&bottomlat={LAT_SOUTH}&leftlon={LON_WEST}&rightlon={LON_EAST}"
+    )
+    response = _request_with_retries(url, timeout=timeout, retries=retries)
+    if response is None:
+        return False
+    if len(response.content) <= 1000 or not response.content.startswith(b"GRIB"):
+        print(f"⚠️  Paso f{f_str} no disponible o respuesta no válida.")
+        return False
+
+    temp_grib = temp_path_for(target_grib)
+    try:
+        temp_grib.write_bytes(response.content)
+        os.replace(temp_grib, target_grib)
+    except Exception:
+        if temp_grib.exists():
+            temp_grib.unlink()
+        raise
+    return True
+
+
+def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir, land_union,
+                             min_steps=5, strict=False, timeout=REQUEST_TIMEOUT,
+                             retries=MAX_RETRIES):
+    """
+    Descarga y procesa los pasos de pronóstico de 0 a 168 horas (7 días).
+    Devuelve un diccionario con todas las métricas V5.3 por paso.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    # Pasos de pronóstico: cada 24 horas hasta el día 7 (168 horas)
-    forecast_hours = [0, 24, 48, 72, 96, 120, 144, 168]
-    
-    forecast_results = {
-        "dates": [],
-        "pressure_psa": [],
-        "lat": [],
-        "lon": []
-    }
 
+    forecast = {field: [] for field in FORECAST_FIELDS}
+    failed_steps = []
     base_time = datetime.datetime.strptime(f"{date_str} {cycle_str}", "%Y%m%d %H")
-    print(f"\n📡 [NOAA GFS] Descargando pronóstico operativo ciclo {date_str} {cycle_str}Z...")
 
-    for f_step in forecast_hours:
+    print(f"\n📡 [NOAA GFS] Procesando pronóstico operativo ciclo {date_str} {cycle_str}Z...")
+
+    for f_step in FORECAST_HOURS:
         f_str = f"{f_step:03d}"
         target_grib = output_dir / f"gfs_{date_str}_{cycle_str}z_f{f_str}.grib2"
         valid_date = (base_time + datetime.timedelta(hours=f_step)).strftime("%Y-%m-%d")
 
-        url = (
-            f"{NOMADS_BASE}/cgi-bin/filter_gfs_0p25.pl"
-            f"?dir=%2Fgfs.{date_str}%2F{cycle_str}%2Fatmos"
-            f"&file=gfs.t{cycle_str}z.pgrb2.0p25.f{f_str}"
-            f"&var_PRMSL=on"
-            f"&subregion=on"
-            f"&toplat={LAT_NORTH}&bottomlat={LAT_SOUTH}&leftlon={LON_WEST}&rightlon={LON_EAST}"
-        )
-
-        # Descargar solo si no existe un GRIB válido (no vacío)
         if not is_nonempty_file(target_grib):
-            temp_grib = temp_path_for(target_grib)
-            try:
-                res = requests.get(url, timeout=20)
-                # Todo archivo GRIB2 válido comienza con la firma b"GRIB"
-                if res.status_code == 200 and len(res.content) > 1000 and res.content.startswith(b"GRIB"):
-                    temp_grib.write_bytes(res.content)
-                    os.replace(temp_grib, target_grib)
-                else:
-                    if temp_grib.exists():
-                        temp_grib.unlink()
-                    print(f"⚠️  Paso f{f_str} no disponible o respuesta no válida (código {res.status_code}).")
-                    continue
-            except Exception as e:
-                if temp_grib.exists():
-                    temp_grib.unlink()
-                print(f"⚠️  Error de red descargando f{f_str}: {e}")
+            if not _download_step(
+                date_str, cycle_str, f_step, target_grib,
+                timeout=timeout, retries=retries,
+            ):
+                failed_steps.append(f_step)
                 continue
 
-        # Procesar GRIB con xarray y detectar centro del APS
         try:
-            with xr.open_dataset(os.fspath(target_grib), engine="cfgrib") as ds:
-                p_var = ds["prmsl"] / 100.0  # Pascales a hPa
-                lats = ds["latitude"].values
-                lons = ds["longitude"].values
-
-                # Convertir longitudes si vienen en rango 0-360
-                if np.any(lons > 180):
-                    lons = np.where(lons > 180, lons - 360, lons)
-
-                grid = p_var.values
-
-                # Máscara oceánica estricta (evita Los Andes/continente sudamericano)
-                lat_mask = (lats <= TRACK_LAT_NORTH) & (lats >= TRACK_LAT_SOUTH)
-                lon_grid, _ = np.meshgrid(lons, lats)
-                coast_limits = get_pacific_coastline_lon(lats)[:, None]
-                ocean_mask = (lon_grid >= TRACK_LON_WEST) & (lon_grid < coast_limits) & lat_mask[:, None]
-                masked_grid = np.where(ocean_mask, grid, np.nan)
-
-                max_idx = np.unravel_index(np.nanargmax(masked_grid), masked_grid.shape)
-                
-                max_p = float(round(masked_grid[max_idx], 2))
-                lat_c = float(round(lats[max_idx[0]], 2))
-                lon_c = float(round(lons[max_idx[1]], 2))
-
-                forecast_results["dates"].append(valid_date)
-                forecast_results["pressure_psa"].append(max_p)
-                forecast_results["lat"].append(lat_c)
-                forecast_results["lon"].append(lon_c)
-
-                print(f"  + Pronóstico +{f_step}h ({valid_date}): PSA={max_p} hPa, Centro: {lat_c}°S, {lon_c}°W")
-
-        except Exception as e:
-            # Si falla la apertura, eliminar el archivo corrupto para permitir reintento limpio
+            metrics = _extract_metrics_from_grib(target_grib, land_union)
+        except Exception as error:
             if target_grib.exists():
                 target_grib.unlink()
-            print(f"⚠️  Error procesando GRIB f{f_str}: {e}")
+            print(f"⚠️  Error procesando GRIB f{f_str}: {error}")
+            failed_steps.append(f_step)
+            continue
 
-    return forecast_results
+        if metrics is None:
+            print(f"⚠️  f{f_str} sin puntos oceánicos válidos; se omite.")
+            failed_steps.append(f_step)
+            continue
+
+        forecast["dates"].append(valid_date)
+        forecast["forecast_hours"].append(f_step)
+        for field in FORECAST_FIELDS:
+            if field in ("dates", "forecast_hours"):
+                continue
+            forecast[field].append(metrics[field])
+
+        print(
+            f"  + Pronóstico +{f_step}h ({valid_date}): "
+            f"PSA={metrics['p_max_fit']} hPa, "
+            f"Centro: {metrics['lat_core']}°S, {metrics['lon_core']}°W, "
+            f"Régimen: {metrics['regime']}"
+        )
+
+    n_steps = len(forecast["dates"])
+    if failed_steps:
+        print(f"⚠️  Pasos no disponibles: {failed_steps}")
+    if n_steps < min_steps:
+        message = (
+            f"Solo se obtuvieron {n_steps} pasos válidos; el mínimo requerido es {min_steps}."
+        )
+        if strict:
+            raise RuntimeError(message)
+        print(f"⚠️  {message}")
+    elif strict and failed_steps:
+        raise RuntimeError(
+            f"Modo estricto: fallaron los pasos {failed_steps} aunque hay {n_steps} válidos."
+        )
+
+    return forecast
+
+
+def _build_archive_rows(forecast, cycle, generated_at):
+    """
+    Convierte el bloque de pronóstico en filas tabulares para el historial.
+    """
+    rows = []
+    n_steps = len(forecast["dates"])
+    for index in range(n_steps):
+        row = {"cycle": cycle, "generated_at": generated_at}
+        for field in FORECAST_FIELDS:
+            row[field] = forecast[field][index]
+        rows.append(row)
+    return rows
+
+
+def archive_forecast(forecast, cycle, generated_at, history_path, web_csv_path):
+    """
+    Actualiza el historial GFS por ciclo y publica el CSV del pronóstico vigente.
+    """
+    import pandas as pd
+
+    forecast_df = pd.DataFrame(_build_archive_rows(forecast, cycle, generated_at))
+    forecast_df = forecast_df[ARCHIVE_COLUMNS]
+    atomic_csv_dump(forecast_df, web_csv_path, index=False)
+    print(f"✅ [GFS] CSV del pronóstico vigente publicado en: {web_csv_path}")
+
+    history_df = forecast_df
+    if Path(history_path).exists():
+        existing = pd.read_csv(history_path)
+        existing = existing[existing["cycle"] != cycle]
+        history_df = pd.concat([existing, forecast_df], ignore_index=True)
+
+    for column in ARCHIVE_COLUMNS:
+        if column not in history_df.columns:
+            history_df[column] = None
+    history_df = history_df[ARCHIVE_COLUMNS]
+    history_df = history_df.sort_values(["cycle", "forecast_hours"]).reset_index(drop=True)
+    atomic_csv_dump(history_df, history_path, index=False)
+    print(f"✅ [GFS] Historial de pronósticos actualizado en: {history_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Descargador de pronóstico NOAA GFS para el APS")
-    parser.add_argument("--output-json", type=str, default="data/processed/gfs_forecast_aps.json",
-                        help="Ruta del JSON con el pronóstico. Las rutas relativas se resuelven desde la raíz del proyecto")
+    parser = argparse.ArgumentParser(
+        description="Descargador de pronóstico NOAA GFS para el APS (V5.3)"
+    )
+    parser.add_argument("--output-json", type=str,
+                        default="data/processed/gfs_forecast_aps.json",
+                        help="Ruta del JSON con el pronóstico completo.")
     parser.add_argument("--temp-dir", type=str, default="data/temp/gfs",
-                        help="Directorio temporal para archivos GRIB2. Las rutas relativas se resuelven desde la raíz del proyecto")
-    
+                        help="Directorio temporal para archivos GRIB2.")
+    parser.add_argument("--history-csv", type=str,
+                        default="data/processed/gfs_forecast_history.csv",
+                        help="Historial acumulado de pronósticos GFS.")
+    parser.add_argument("--web-csv", type=str,
+                        default="web/data/gfs_forecast_aps_metrics.csv",
+                        help="CSV del pronóstico vigente para descarga web.")
+    parser.add_argument("--archive", action="store_true",
+                        help="Agrega o actualiza el historial GFS por ciclo.")
+    parser.add_argument("--min-steps", type=int, default=5,
+                        help="Mínimo de pasos válidos exigidos (por defecto 5).")
+    parser.add_argument("--strict", action="store_true",
+                        help="Falla si no se alcanza --min-steps o si falta algún paso.")
+    parser.add_argument("--cycle", type=str, default=None,
+                        help="Ciclo forzado 'YYYYMMDD HHZ' (útil con GRIB ya descargados).")
+    parser.add_argument("--timeout", type=int, default=REQUEST_TIMEOUT,
+                        help="Timeout HTTP en segundos (por defecto 60).")
+    parser.add_argument("--retries", type=int, default=MAX_RETRIES,
+                        help="Número de reintentos HTTP (por defecto 3).")
     args = parser.parse_args()
 
     if not check_gfs_dependencies():
@@ -230,30 +398,52 @@ def main():
 
     output_json = resolve_project_path(args.output_json)
     temp_dir = resolve_project_path(args.temp_dir)
+    history_csv = resolve_project_path(args.history_csv)
+    web_csv = resolve_project_path(args.web_csv)
 
-    date_str, cycle_str = get_latest_gfs_cycle()
-    forecast = fetch_gfs_forecast_steps(date_str, cycle_str, temp_dir)
-
-    if forecast["dates"]:
-        ensure_parent_dir(output_json)
-        temp_json = temp_path_for(output_json)
-        try:
-            with open(temp_json, "w", encoding="utf-8") as f:
-                json.dump({
-                    "model_id": "noaa_gfs_forecast",
-                    "model_name": "NOAA GFS (Pronóstico Operativo 7 Días)",
-                    "cycle": f"{date_str} {cycle_str}Z",
-                    "forecast": forecast
-                }, f, indent=2)
-            os.replace(temp_json, output_json)
-        except Exception as e:
-            if temp_json.exists():
-                temp_json.unlink()
-            print(f"[ERROR] No se pudo guardar el JSON del pronóstico: {e}")
-            sys.exit(1)
-        print(f"\n✅ [ÉXITO] Pronóstico GFS a 7 días guardado en: {output_json}")
+    if args.cycle:
+        date_str, cycle_str = _parse_forced_cycle(args.cycle)
     else:
+        date_str, cycle_str = get_latest_gfs_cycle(
+            timeout=args.timeout, retries=args.retries
+        )
+
+    land_union = download_and_load_natural_earth_10m()
+
+    try:
+        forecast = fetch_gfs_forecast_steps(
+            date_str, cycle_str, temp_dir, land_union,
+            min_steps=args.min_steps, strict=args.strict,
+            timeout=args.timeout, retries=args.retries,
+        )
+    except RuntimeError as error:
+        print(f"[ERROR] {error}")
+        sys.exit(1)
+
+    if not forecast["dates"]:
         print("[ERROR] No se pudo compilar el pronóstico de GFS.")
+        sys.exit(1)
+
+    generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    cycle_label = f"{date_str} {cycle_str}Z"
+    payload = {
+        "model_id": "noaa_gfs_forecast",
+        "model_name": "NOAA GFS (Pronóstico Operativo 7 Días)",
+        "cycle": cycle_label,
+        "generated_at": generated_at,
+        "forecast": forecast,
+    }
+
+    atomic_json_dump(payload, output_json, indent=2, ensure_ascii=False)
+    print(f"\n✅ [ÉXITO] Pronóstico GFS a 7 días guardado en: {output_json}")
+
+    if args.archive:
+        archive_forecast(forecast, cycle_label, generated_at, history_csv, web_csv)
+    else:
+        import pandas as pd
+        forecast_df = pd.DataFrame(_build_archive_rows(forecast, cycle_label, generated_at))
+        atomic_csv_dump(forecast_df[ARCHIVE_COLUMNS], web_csv, index=False)
+        print(f"✅ [GFS] CSV del pronóstico vigente publicado en: {web_csv}")
 
 
 if __name__ == "__main__":
