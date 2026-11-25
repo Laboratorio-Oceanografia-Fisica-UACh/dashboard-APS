@@ -505,9 +505,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Descarta respuestas obsoletas si el usuario movió el slider mientras cargaba.
     if (requestToken !== mapRequestToken) return;
 
+    // Construir estructura unificada: { by_date: { "YYYY-MM-DD": grid }, date: latest }
+    const spatialGridForMap = rawData.spatial_grids_by_date
+      ? { by_date: rawData.spatial_grids_by_date, date: rawData.spatial_grid?.date ?? null }
+      : spatialGrid;  // fallback a formato antiguo
+
     mapsInstance.updatePressureMap(
       latCore, lonCore, p, latCent, lonCent,
-      activeDate, isForecast, spatialGrid, extraMetrics, modelId
+      activeDate, isForecast, spatialGridForMap, extraMetrics, modelId
     );
 
     mapsInstance.updateAnomalyMap(

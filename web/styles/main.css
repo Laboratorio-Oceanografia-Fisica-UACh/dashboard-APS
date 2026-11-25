@@ -1650,6 +1650,37 @@ body {
   }
 }
 
+/* ==========================================================================
+   Notificaciones de Grid de Presión (map-grid-notice)
+   ========================================================================== */
+.map-grid-notice {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(8, 14, 30, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(72, 110, 163, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.85rem;
+  z-index: 1000;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  max-width: 320px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.map-grid-notice strong {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 
 /* ==========================================================================
    Marcadores del Par Dinámico V5.3 (LOFA - UACh)

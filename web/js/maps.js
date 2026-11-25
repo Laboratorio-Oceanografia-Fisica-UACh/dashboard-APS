@@ -429,12 +429,33 @@ class DashboardMaps {
       `)
       .addTo(this.isobarLayer);
 
-    // 4. Trazado de Isobaras con Marching Squares 2D
+    // 4. Trazado de Isobaras con Marching Squares 2D — campos SLP reales por fecha
     let field = null;
-    if (spatialGrid && spatialGrid.current_slp && spatialGrid.lats && spatialGrid.lons && spatialGrid.date && spatialGrid.date === dateStr) {
+
+    // Prioridad 1: buscar en spatial_grids_by_date (nuevo formato)
+    if (spatialGrid && spatialGrid.by_date && spatialGrid.by_date[dateStr]) {
+      const g = spatialGrid.by_date[dateStr];
+      field = { lats: g.lats, lons: g.lons, grid: g.current_slp };
+    }
+    // Prioridad 2: compatibilidad con spatial_grid único (formato antiguo)
+    else if (spatialGrid && spatialGrid.current_slp
+             && spatialGrid.date === dateStr) {
       field = { lats: spatialGrid.lats, lons: spatialGrid.lons, grid: spatialGrid.current_slp };
-    } else {
+    }
+    // Prioridad 3: Fallback de emergencia — campo gaussiano sintético solo si no hay datos reales.
+    else if (spatialGrid && spatialGrid.lats && spatialGrid.lons) {
+      console.warn(
+        `[maps.js] No se encontró rejilla SLP para la fecha ${dateStr}. `
+        + 'Usando campo de presión sintético como fallback de emergencia.'
+      );
       field = this.generateSynopticPressureGrid(coreLat, coreLon, maxPressure);
+    }
+
+    if (!field) {
+      console.error(
+        `[maps.js] No se pudo construir ningun campo de presion para ${dateStr}. `
+        + 'El mapa de presion no mostrara isobaras.'
+      );
     }
 
     const isobarConfig = [
