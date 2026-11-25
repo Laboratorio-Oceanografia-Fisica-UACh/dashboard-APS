@@ -89,10 +89,11 @@ estado_*.md
 comparativa_*.md
 diagnostico_*.md
 
-# Ignorar avances en pruebas/pilotos/operaciones
+# Ignorar avances en pruebas/pilotos/operaciones/implementacion
 piloto_*.md
 progreso_*.md
 OPERACION_*.md
+implementacion_*.md
 
 # Ignorar notebooks para estudiar
 Anticiclon.ipynb
