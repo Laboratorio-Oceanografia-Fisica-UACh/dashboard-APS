@@ -39,10 +39,14 @@ def _replace_atomically(temp_path, target):
         raise
 
 
-def atomic_json_dump(obj, target, indent=2, ensure_ascii=False, allow_nan=False):
+def atomic_json_dump(obj, target, indent=2, ensure_ascii=False, allow_nan=False,
+                     separators=None):
     """
     Escribe un JSON en dos fases (temporal + os.replace) para evitar
     archivos parciales ante interrupciones.
+
+    `separators` permite publicar JSON compacto sin alterar el comportamiento
+    histórico de las llamadas que no lo especifican.
     """
     target = Path(target)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -50,7 +54,7 @@ def atomic_json_dump(obj, target, indent=2, ensure_ascii=False, allow_nan=False)
     try:
         with open(temp_path, "w", encoding="utf-8") as handle:
             json.dump(obj, handle, indent=indent, ensure_ascii=ensure_ascii,
-                      allow_nan=allow_nan)
+                      allow_nan=allow_nan, separators=separators)
         _replace_atomically(temp_path, target)
     except Exception:
         if temp_path.exists():

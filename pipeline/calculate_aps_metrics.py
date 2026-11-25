@@ -33,6 +33,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from pipeline.paths import ensure_parent_dir, resolve_project_path
 from pipeline.file_utils import atomic_csv_dump, atomic_json_dump
+from pipeline.grid_export import build_grid_document, export_grid_document
 from pipeline.compute_climatology import (
     generate_doy_climatology_series,
     load_wmo_climatology,
@@ -241,7 +242,8 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
 
 def extract_latest_spatial_grid(input_dir, df):
     """
-    Extrae la última cuadrícula espacial 2D submuestreada a 0.5° para mapas.
+    Extrae la última cuadrícula espacial 2D real submuestreada a 0.5° para mapas.
+    La fecha se toma de la coordenada temporal del NetCDF, no del DataFrame.
     Sincroniza el archivo de origen con el último año presente en df.
     """
     import xarray as xr
@@ -255,40 +257,56 @@ def extract_latest_spatial_grid(input_dir, df):
         latest_file = str(expected_file)
     else:
         nc_pattern = os.path.join(input_dir, "era5_mslp_pacifico_*.nc")
-        valid_files = [f for f in glob.glob(nc_pattern) if not os.path.basename(f).startswith(("#", "."))]
+        valid_files = [
+            f for f in glob.glob(nc_pattern)
+            if not os.path.basename(f).startswith(("#", "."))
+        ]
         valid_files.sort()
         if not valid_files:
             return None
         latest_file = valid_files[-1]
 
-    print(f"🗺️  Generando cuadrícula espacial para mapas a partir de: {os.path.basename(latest_file)}")
+    print(
+        "🗺️  Generando cuadrícula espacial real para mapas a partir de: "
+        f"{os.path.basename(latest_file)}"
+    )
 
     with xr.open_dataset(latest_file) as ds:
         time_dim = "valid_time" if "valid_time" in ds.dims else "time"
-        
+
         # Promedio diario robusto (compatible con 24h o con --synoptic-only de 4h)
-        latest_slp_da = (ds["msl"] / 100.0).resample({time_dim: "1D"}).mean(dim=time_dim).isel({time_dim: -1})
-        
+        daily = (ds["msl"] / 100.0).resample({time_dim: "1D"}).mean(dim=time_dim).compute()
+        if daily.sizes.get(time_dim, 0) == 0:
+            return None
+
         # Submuestreo a 0.5° para transferencia web ligera
-        sampled = latest_slp_da.sel(
+        sampled = daily.isel({time_dim: -1}).sel(
             latitude=slice(TRACK_LAT_NORTH, TRACK_LAT_SOUTH, 2),
-            longitude=slice(TRACK_LON_WEST, TRACK_LON_EAST, 2)
+            longitude=slice(TRACK_LON_WEST, TRACK_LON_EAST, 2),
         ).compute()
+
+        time_values = np.atleast_1d(sampled[time_dim].values)
+        if time_values.size == 0:
+            return None
+        grid_date = str(time_values[0])[:10]
 
         lats = [float(round(y, 2)) for y in sampled["latitude"].values]
         lons = [float(round(x, 2)) for x in sampled["longitude"].values]
-        slp_grid = [[float(round(val, 2)) if not np.isnan(val) else None for val in row] for row in sampled.values]
+        slp_values = np.asarray(sampled.values, dtype=float)
+        mean_val = float(np.nanmean(slp_values))
+        if not np.isfinite(mean_val):
+            return None
 
-        mean_val = np.nanmean(sampled.values)
-        anomaly_grid = [[float(round(val - mean_val, 2)) if val is not None else None for val in row] for row in slp_grid]
-
-        return {
-            "date": df.iloc[-1]["date"],
-            "lats": lats,
-            "lons": lons,
-            "current_slp": slp_grid,
-            "current_anomaly": anomaly_grid
-        }
+        return build_grid_document(
+            model_id="era5_reanalysis",
+            date=grid_date,
+            lats=lats,
+            lons=lons,
+            slp=slp_values,
+            anomaly=slp_values - mean_val,
+            forecast_hour=None,
+            anomaly_reference="domain_spatial_mean",
+        )
 
 
 def _num_or_none(value, digits):
@@ -400,9 +418,10 @@ def build_dashboard_dataset_v53(df, spatial_grid, era5_cache_df=None,
         }
     }
 
+    # La climatología diaria se publica en un archivo separado para mantener
+    # el payload principal por debajo de 2 MB. El frontend la reinserta.
     models_dict = {
         "ERA5 Reanálisis": era5_model,
-        "Climatología Normal OMM": clim_model
     }
 
     # Asimilar pronóstico GFS solo si trae el esquema V5.3 completo.
@@ -523,6 +542,13 @@ def build_dashboard_dataset_v53(df, spatial_grid, era5_cache_df=None,
             "last_updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "climatology_period": "1994-2023 (WMO 30-Year Standard Normal)",
             "climatology_source": "data/processed/wmo_climatology_1994_2023.json",
+            "grid_manifest": "data/grids/manifest.json",
+            "grid_contract_version": 1,
+            "payload_contract": {
+                "version": 1,
+                "max_bytes": 2000000,
+                "climatology_series": "data/climatology_series.json",
+            },
             "willmott_reference": (
                 "Normal OMM 1994-2023 para concordancia histórica; "
                 "ERA5 verificante para skill de pronóstico"
@@ -543,12 +569,60 @@ def build_dashboard_dataset_v53(df, spatial_grid, era5_cache_df=None,
             }
         },
         "climatology_monthly": climatology,
+        "climatology_model": clim_model,
         "models": models_dict,
         "validation_metrics": validation_rows,
-        "spatial_grid": spatial_grid
     }
 
     return dataset, multimodel_df
+
+
+def write_dashboard_payloads(dataset, processed_path, web_path):
+    """
+    Separa la climatología diaria del payload principal y escribe JSON compacto.
+    Falla si el payload web alcanza o supera 2_000_000 bytes.
+    """
+    processed_path = Path(processed_path)
+    web_path = Path(web_path)
+
+    payload = dict(dataset)
+    clim_model = payload.pop("climatology_model", None)
+    if not isinstance(clim_model, dict):
+        raise ValueError(
+            "El dataset no contiene 'climatology_model'; "
+            "no se puede separar la serie climatológica."
+        )
+
+    climatology_doc = {"schema_version": 1, "model": clim_model}
+
+    atomic_json_dump(
+        payload, processed_path,
+        indent=None, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    )
+    atomic_json_dump(
+        payload, web_path,
+        indent=None, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    )
+    atomic_json_dump(
+        climatology_doc, processed_path.parent / "climatology_series.json",
+        indent=None, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    )
+    atomic_json_dump(
+        climatology_doc, web_path.parent / "climatology_series.json",
+        indent=None, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    )
+
+    size_bytes = web_path.stat().st_size
+    if size_bytes >= 2_000_000:
+        raise RuntimeError(
+            f"El payload web {web_path} tiene {size_bytes} bytes; "
+            "supera el límite contractual de 2 MB."
+        )
+    return size_bytes
 
 
 def main():
@@ -598,8 +672,16 @@ def main():
         print(f"[ERROR] La ventana activa {args.active_start_year}-{args.active_end_year} no contiene datos.")
         sys.exit(1)
 
-    # 3. Rejilla espacial 2D más reciente
+    # 3. Rejilla espacial 2D real más reciente y publicación diferida
     spatial_grid = extract_latest_spatial_grid(input_dir, df)
+    if spatial_grid is not None:
+        grid_path = export_grid_document(spatial_grid)
+        print(f"✅ [REJILLA] Campo 2D real publicado en: {grid_path}")
+    else:
+        print(
+            "⚠️  Sin rejilla 2D real; el mapa mostrará el aviso "
+            "'Campo 2D no disponible para esta fecha/modelo'."
+        )
 
     # 4. Construir Dataset JSON y DataFrame Multimodelo
     gfs_history_df = load_gfs_history(
@@ -619,13 +701,15 @@ def main():
         "n_days": int(len(active_df)),
     }
 
-    # 5. Guardar salidas en data/processed/ y web/data/ con escritura atómica
-    atomic_json_dump(dataset, output_path, indent=2, ensure_ascii=False, allow_nan=False)
-    print(f"✅ [ÉXITO] Archivo web generado en: {output_path}")
-
+    # 5. Publicar payload compacto y serie climatológica separada
     web_json_path = resolve_project_path("web/data/latest_aps_data.json")
-    atomic_json_dump(dataset, web_json_path, indent=2, ensure_ascii=False, allow_nan=False)
-    print(f"✅ [ÉXITO] Copia frontend generada en: {web_json_path}")
+    payload_bytes = write_dashboard_payloads(dataset, output_path, web_json_path)
+    print(f"✅ [ÉXITO] Payload procesado generado en: {output_path}")
+    print(f"✅ [ÉXITO] Payload web compacto: {web_json_path} ({payload_bytes} bytes)")
+    print(
+        "✅ [ÉXITO] Serie climatológica separada: "
+        f"{web_json_path.parent / 'climatology_series.json'}"
+    )
 
     web_csv_path = resolve_project_path("web/data/era5_daily_aps_metrics.csv")
     atomic_csv_dump(active_df, web_csv_path, index=False)

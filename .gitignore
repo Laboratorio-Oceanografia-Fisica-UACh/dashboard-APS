@@ -79,7 +79,7 @@ Plan_Accion_*.md
 Plan_correcion_*.md
 Plan_Correcion_*.md
 
-# Ignorar explicaciones/resumenes/revisiones
+# Ignorar explicaciones/resumenes/revisiones/diagnosticos
 explicacion_*.md
 Revision_*.md
 sugerencias_*.md
@@ -87,6 +87,7 @@ estructura_*.md
 estructura_*.txt
 estado_*.md
 comparativa_*.md
+diagnostico_*.md
 
 # Ignorar avances en pruebas/pilotos/operaciones
 piloto_*.md
