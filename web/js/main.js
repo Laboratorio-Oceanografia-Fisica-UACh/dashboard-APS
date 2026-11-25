@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isPlaying = false;
   let playInterval = null;
   let focusedModelId = 'era5_reanalisis';
+  let gridStore = null;
+  let mapRequestToken = 0;
 
   // 1. Instanciar Selector de Modelos y Mapas
   const modelSelector = new ModelSelector((selectedModelIds) => {
@@ -30,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   mapsInstance = new DashboardMaps();
+  gridStore = new GridStore({ baseUrl: 'data/grids/' });
 
   // 2. Instanciar Gráficos con callback de clic para sincronización con mapas
   chartsInstance = new DashboardCharts(modelSelector, (selectedDate) => {
@@ -59,8 +62,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Inicializar todos los modales científicos individuales
     initScienceModals(rawData);
 
-    // Renderizar estado inicial en mapas y KPIs
-    syncTimelineToDate(timelineDates[timelineDates.length - 1]);
+    // Renderizar estado inicial en el último análisis ERA5 con rejilla real.
+    // El pronóstico GFS sigue accesible mediante el slider.
+    const era5Model = rawData.models['ERA5 Reanálisis'];
+    const initialDate = era5Model && era5Model.dates && era5Model.dates.length > 0
+      ? era5Model.dates[era5Model.dates.length - 1]
+      : timelineDates[timelineDates.length - 1];
+    syncTimelineToDate(initialDate);
 
   } catch (error) {
     console.error('[ERROR] Error cargando los datos del APS:', error);
@@ -268,27 +276,28 @@ document.addEventListener('DOMContentLoaded', async () => {
    * de forma analítica y empírica sin ningún 1022.0 estático.
    */
   function getClimatologyForDate(dateStr) {
-    const climModel = rawData.models['Climatología Histórica LOFA'] || rawData.models['Climatología Histórica'];
-    if (climModel && climModel.dates) {
-      const idx = climModel.dates.indexOf(dateStr);
-      if (idx !== -1 && climModel.pressure_psa[idx] !== undefined) {
-        return climModel.pressure_psa[idx];
-      }
-      // Búsqueda por día y mes (MM-DD)
+    const climModel = rawData.models['Climatología Normal OMM'];
+    if (!climModel ||
+        !Array.isArray(climModel.dates) ||
+        !Array.isArray(climModel.p_max_fit)) {
+      return null;
+    }
+
+    let idx = climModel.dates.indexOf(dateStr);
+    if (idx === -1) {
+      // Búsqueda por día y mes (MM-DD) sobre la Normal OMM 1994-2023.
       const mmdd = dateStr.slice(5);
       for (let i = climModel.dates.length - 1; i >= 0; i--) {
-        if (climModel.dates[i].endsWith(mmdd)) {
-          return climModel.pressure_psa[i];
+        if (climModel.dates[i].slice(5) === mmdd) {
+          idx = i;
+          break;
         }
       }
     }
+    if (idx === -1) return null;
 
-    // Respaldo climatológico empírico directo
-    if (climModel && climModel.pressure_psa && climModel.pressure_psa.length > 0) {
-      const sum = climModel.pressure_psa.reduce((a, b) => a + b, 0);
-      return sum / climModel.pressure_psa.length;
-    }
-    return 1024.0;
+    const value = Number(climModel.p_max_fit[idx]);
+    return Number.isFinite(value) ? value : null;
   }
 
   function updateKpis() {
@@ -316,9 +325,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (model) {
       const dIdx = model.dates.indexOf(activeDate);
 
-      let p = 1024.0;
-      let latCore = -33.5;
-      let lonCore = -91.0;
+      let p = null;
+      let latCore = null;
+      let lonCore = null;
       let latCent = null;
       let lonCent = null;
       let area1020 = null;
@@ -354,21 +363,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         pPat = model.latest.p_patagonia || null;
       }
 
-      const anom = (p - climBaseline).toFixed(2);
+      const anom = (p !== null && climBaseline !== null)
+        ? (p - climBaseline)
+        : null;
 
       // KPI 1: Presión Central
-      if (kpiPressure) kpiPressure.innerHTML = `${p.toFixed(2)} <small>hPa</small>`;
+      if (kpiPressure) {
+        kpiPressure.innerHTML = p !== null
+          ? `${p.toFixed(2)} <small>hPa</small>`
+          : 'N/D <small>hPa</small>';
+      }
       if (kpiAnomaly) {
-        const sign = anom >= 0 ? '+' : '';
-        kpiAnomaly.innerHTML = `Anomalía WMO: <strong style="color: ${anom >= 0 ? '#fbbf24' : '#38bdf8'};">${sign}${anom} hPa</strong>`;
+        if (anom === null) {
+          kpiAnomaly.innerHTML = 'Anomalía WMO: <strong>N/D</strong>';
+        } else {
+          const sign = anom >= 0 ? '+' : '';
+          kpiAnomaly.innerHTML = `Anomalía WMO: <strong style="color: ${anom >= 0 ? '#fbbf24' : '#38bdf8'};">${sign}${anom.toFixed(2)} hPa</strong>`;
+        }
       }
 
       // KPI 2: Par Dinámico
-      if (kpiPosition) kpiPosition.textContent = `Núcleo (+): ${Math.abs(latCore).toFixed(2)}°S, ${Math.abs(lonCore).toFixed(2)}°W`;
+      if (kpiPosition) {
+        kpiPosition.textContent = (latCore !== null && lonCore !== null)
+          ? `Núcleo (+): ${Math.abs(latCore).toFixed(2)}°S, ${Math.abs(lonCore).toFixed(2)}°W`
+          : 'Núcleo (+): N/D';
+      }
       if (kpiCentroid) {
-        kpiCentroid.textContent = latCent !== null ?
-          `Centroide (◇): ${Math.abs(latCent).toFixed(2)}°S, ${Math.abs(lonCent).toFixed(2)}°W` :
-          'Centroide: No disponible';
+        kpiCentroid.textContent = (latCent !== null && lonCent !== null)
+          ? `Centroide (◇): ${Math.abs(latCent).toFixed(2)}°S, ${Math.abs(lonCent).toFixed(2)}°W`
+          : 'Centroide: N/D';
       }
 
       // KPI 3: Extensión y Masa
@@ -385,11 +408,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (kpiDecouplingBadge && distDec !== null) {
         let badgeHtml = '';
-        if (distDec < 200) {
+        if (distDec < 300) {
           badgeHtml = '<span class="badge-regime-symmetric">Simétrico Concéntrico</span>';
-        } else if (azimuth >= 45 && azimuth < 135) {
+        } else if (azimuth >= 30 && azimuth < 120) {
           badgeHtml = '<span class="badge-regime-coastal">Cuña Costera (Chile Central)</span>';
-        } else if (azimuth >= 135 && azimuth < 225) {
+        } else if (azimuth >= 120 && azimuth < 210) {
           badgeHtml = '<span class="badge-regime-blocking">Bloqueo Patagónico Austral</span>';
         } else {
           badgeHtml = '<span class="badge-regime-oceanic">Elongación Oceánica</span>';
@@ -408,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function updateMapForCurrentDate() {
+  async function updateMapForCurrentDate() {
     if (!mapsInstance || !rawData || timelineDates.length === 0) return;
 
     const activeDate = timelineDates[currentDateIndex];
@@ -425,11 +448,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    let latCore = -33.5;
-    let lonCore = -91.0;
+    let latCore = null;
+    let lonCore = null;
     let latCent = null;
     let lonCent = null;
-    let p = 1024.0;
+    let p = null;
     let distDec = null;
     let azimuth = null;
     let area1020 = null;
@@ -467,12 +490,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       vol_integral: vol
     };
 
+    const modelId = targetModel && targetModel.id ? targetModel.id : null;
+    const requestToken = ++mapRequestToken;
+
+    let spatialGrid = null;
+    if (modelId && gridStore) {
+      try {
+        spatialGrid = await gridStore.getGrid(modelId, activeDate);
+      } catch (error) {
+        console.warn(`[GRID] ${error.message}`);
+      }
+    }
+
+    // Descarta respuestas obsoletas si el usuario movió el slider mientras cargaba.
+    if (requestToken !== mapRequestToken) return;
+
     mapsInstance.updatePressureMap(
       latCore, lonCore, p, latCent, lonCent,
-      activeDate, isForecast, rawData.spatial_grid, extraMetrics
+      activeDate, isForecast, spatialGrid, extraMetrics, modelId
     );
 
-    mapsInstance.updateAnomalyMap(rawData.spatial_grid, latCore, lonCore, p);
+    mapsInstance.updateAnomalyMap(
+      spatialGrid, latCore, lonCore, p, activeDate, modelId
+    );
   }
 
   // =========================================================================
@@ -674,10 +714,31 @@ async function loadData() {
 
   for (const path of possiblePaths) {
     try {
+      const climatologyPath = path.replace(
+        /latest_aps_data\.json$/,
+        'climatology_series.json'
+      );
       const res = await fetch(path);
-      if (res.ok) {
-        return await res.json();
+      if (!res.ok) continue;
+
+      const payload = await res.json();
+      try {
+        const climRes = await fetch(climatologyPath);
+        if (climRes.ok) {
+          const climDoc = await climRes.json();
+          if (climDoc && climDoc.model && climDoc.model.name) {
+            payload.models[climDoc.model.name] = climDoc.model;
+          }
+        } else {
+          console.warn(
+            '[CLIM] climatology_series.json no disponible; ' +
+            'la anomalía WMO se mostrará como N/D.'
+          );
+        }
+      } catch (error) {
+        console.warn('[CLIM] No se pudo cargar la climatología separada:', error);
       }
+      return payload;
     } catch (e) {
       // Intentar siguiente ruta
     }
