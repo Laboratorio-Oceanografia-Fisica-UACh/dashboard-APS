@@ -248,6 +248,18 @@ jobs:
               --end-year "$END_YEAR"
           fi
 
+      - name: Publicar rejillas 2D reales de cada día del histórico
+        if: ${{ !inputs.dry_run }}
+        env:
+          START_YEAR: ${{ inputs.start_year }}
+          END_YEAR: ${{ inputs.end_year }}
+        run: |
+          set -euo pipefail
+          python pipeline/export_historical_grids.py \
+            --start-year "$START_YEAR" \
+            --end-year "$END_YEAR" \
+            --recent-days 90
+
       - name: Commit y push de salidas procesadas
         id: commit
         if: ${{ !inputs.dry_run }}
@@ -259,11 +271,14 @@ jobs:
           git config user.email "action@github.com"
           git config user.name "GitHub Action Bot - LOFA"
           git add -- \
+            data/processed/climatology_series.json \
             data/processed/era5_daily_aps_metrics.csv \
             data/processed/latest_aps_data.json \
-            web/data/latest_aps_data.json \
+            web/data/aps_multimodel_metrics_lofa.csv \
+            web/data/climatology_series.json \
             web/data/era5_daily_aps_metrics.csv \
-            web/data/aps_multimodel_metrics_lofa.csv
+            web/data/grids \
+            web/data/latest_aps_data.json
           if git diff --cached --name-only | grep -E '\.(nc|nc4|grib2?)$'; then
             echo "::error::Se intentó versionar datos crudos; abortando."
             exit 1

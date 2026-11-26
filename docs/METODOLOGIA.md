@@ -27,9 +27,9 @@ El **Anticiclón del Pacífico Sur (APS)** (*South Pacific Subtropical Anticyclo
                                                          │
                                                          ▼ Ondas de Rossby / Bloqueo
                                             DESACOPLE NÚCLEO–CENTROIDE (D_nc, θ)
-                                            • D_nc < 200 km: Régimen Concéntrico
-                                            • θ ≈ 90°: Cuña Costera (Chile Central)
-                                            • θ ≈ 180°: Bloqueo Austral (Norpatagonia)
+                                            • D_nc < 300 km: Régimen Concéntrico Simétrico
+                                            • θ ∈ [30°, 120°]: Cuña Costera / Compresión (Chile Central)
+                                            • θ ∈ [120°, 210°]: Bloqueo Patagónico Austral (Norpatagonia)
 ```
 
 ### 1.1 Balance Dinámico y Subsidencia Subtropical
@@ -117,6 +117,32 @@ Siguiendo normas internacionales de la OMM y S-RIP:
 * Sesgo Sistemático: $\text{BIAS} = \overline{M} - \overline{O}$ [hPa].
 * Índice de Habilidad de Willmott: $d = 1 - \frac{\sum (M_i - O_i)^2}{\sum (|M_i - \overline{O}| + |O_i - \overline{O}|)^2}$.
 * Error de posición geodésico: Distancia ortodrómica media por Gran Círculo en kilómetros.
+
+---
+
+## 6.1 Publicación de Campos 2D Reales por Fecha
+
+El trazado de isóbaras del cliente (`web/js/maps.js`, método Marching Squares)
+no modela el campo de presión: únicamente dibuja contornos sobre una rejilla
+real ya publicada. Para que cualquier fecha del cronograma muestre isóbaras,
+`pipeline/export_historical_grids.py` genera **un documento por día real**
+presente en cada NetCDF de ERA5:
+
+1. Se promedia la presión a nivel del mar a resolución diaria y se recorta al
+   dominio físico del APS ($[-48^\circ\text{S}, -18^\circ\text{S}] \times
+   [-120^\circ\text{W}, -70^\circ\text{W}]$).
+2. La ventana operativa reciente (por defecto, los últimos 90 días disponibles)
+   se publica a $0.5^\circ$ (61×101 celdas); el resto del histórico a $1.0^\circ$
+   (31×51 celdas). No se interpola ni se rellena ninguna fecha ausente.
+3. Cada documento se valida contra el contrato de `pipeline/grid_export.py` y
+   se escribe de forma atómica, registrándose en
+   `web/data/grids/manifest.json`. Un pase reducido posterior no degrada una
+   rejilla completa ya publicada.
+
+Esta estrategia garantiza que **toda isóbara visible provenga de datos
+institucionales reales**, en concordancia con la directiva 2.3 de `AGENTS.md`.
+Las rejillas se sirven bajo demanda desde `web/data/grids/`, sin incorporar
+campos al payload principal ni introducir herramientas de compilación en `web/`.
 
 ---
 

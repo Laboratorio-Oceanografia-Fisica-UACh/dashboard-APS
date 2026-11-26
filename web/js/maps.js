@@ -165,6 +165,9 @@ class DashboardMaps {
     this.anomalyLayer = null;
 
     this.currentDate = null;
+    this.currentModelId = null;
+    this.pressureGridNotice = null;
+    this.anomalyGridNotice = null;
 
     this.initMaps();
   }
@@ -196,6 +199,7 @@ class DashboardMaps {
     L.tileLayer(baseTileUrl, tileOptions).addTo(this.pressureMap);
     this.isobarLayer = L.layerGroup().addTo(this.pressureMap);
     this.patagoniaBoxLayer = L.layerGroup().addTo(this.pressureMap);
+    this.pressureGridNotice = this.createGridNotice(this.pressureMap);
 
     // 2. Inicializar Mapa 2: Campo de Anomalías de Presión
     this.anomalyMap = L.map('anomalyMap', {
@@ -209,6 +213,7 @@ class DashboardMaps {
 
     L.tileLayer(baseTileUrl, tileOptions).addTo(this.anomalyMap);
     this.anomalyLayer = L.layerGroup().addTo(this.anomalyMap);
+    this.anomalyGridNotice = this.createGridNotice(this.anomalyMap);
 
     // 3. Sincronizar encuadre y zoom bidireccional entre ambos mapas
     this.pressureMap.on('move', () => {
@@ -226,6 +231,33 @@ class DashboardMaps {
 
     // 5. Renderizar Polígono Fijo de la Caja Norpatagonia
     this.renderPatagoniaBox();
+  }
+
+  createGridNotice(mapInstance) {
+    const notice = L.control({ position: 'bottomleft' });
+    notice.onAdd = () => {
+      const div = L.DomUtil.create('div', 'map-grid-notice');
+      div.textContent = 'Campo 2D no disponible para esta fecha/modelo';
+      div.hidden = true;
+      return div;
+    };
+    notice.addTo(mapInstance);
+    return notice;
+  }
+
+  setGridNotice(control, visible) {
+    if (!control) return;
+    const container = control.getContainer();
+    if (container) container.hidden = !visible;
+  }
+
+  isValidGrid(spatialGrid, dateStr, modelId) {
+    if (!spatialGrid || !modelId || !dateStr) return false;
+    if (spatialGrid.model_id !== modelId) return false;
+    if (spatialGrid.date !== dateStr) return false;
+    if (!Array.isArray(spatialGrid.lats) || !Array.isArray(spatialGrid.lons)) return false;
+    if (!Array.isArray(spatialGrid.slp)) return false;
+    return spatialGrid.lats.length >= 2 && spatialGrid.lons.length >= 2;
   }
 
   addGraticule(mapInstance) {
@@ -308,58 +340,35 @@ class DashboardMaps {
     .addTo(this.patagoniaBoxLayer);
   }
 
-  generateSynopticPressureGrid(centerLat, centerLon, maxPressure) {
-    const latStep = 0.5;
-    const lonStep = 0.5;
-    const lats = [];
-    const lons = [];
-
-    for (let lat = -18.0; lat >= -48.0; lat -= latStep) {
-      lats.push(parseFloat(lat.toFixed(2)));
-    }
-    for (let lon = -120.0; lon <= -70.0; lon += lonStep) {
-      lons.push(parseFloat(lon.toFixed(2)));
-    }
-
-    const grid = [];
-    const sigmaLat = 6.2;
-    const sigmaLon = 11.5;
-    const baseP = 1012.0;
-    const deltaP = Math.max(0, maxPressure - baseP);
-
-    for (let i = 0; i < lats.length; i++) {
-      const row = [];
-      const y = lats[i];
-      for (let j = 0; j < lons.length; j++) {
-        const x = lons[j];
-        const dy = (y - centerLat) / sigmaLat;
-        const dx = (x - centerLon) / sigmaLon;
-        const r2 = dy * dy + dx * dx;
-        const pVal = baseP + deltaP * Math.exp(-0.5 * r2);
-        row.push(parseFloat(pVal.toFixed(2)));
-      }
-      grid.push(row);
-    }
-
-    return { lats, lons, grid };
-  }
-
   /**
    * Actualiza el Mapa de Presión con el Par Dinámico V5.3:
    * Núcleo Submalla (+), Centroide Adaptativo (◇), vector de desacople e isobara 1020 destacada.
    */
-  updatePressureMap(coreLat, coreLon, maxPressure, centLat = null, centLon = null, dateStr = null, isForecast = false, spatialGrid = null, extraMetrics = {}) {
+  updatePressureMap(coreLat, coreLon, maxPressure, centLat = null, centLon = null, dateStr = null, isForecast = false, spatialGrid = null, extraMetrics = {}, modelId = null) {
     this.isobarLayer.clearLayers();
     this.currentDate = dateStr;
+    this.currentModelId = modelId;
 
-    const cLat = (centLat !== null && !isNaN(centLat)) ? centLat : coreLat;
-    const cLon = (centLon !== null && !isNaN(centLon)) ? centLon : coreLon;
+    const cLat = Number.isFinite(centLat) ? centLat : coreLat;
+    const cLon = Number.isFinite(centLon) ? centLon : coreLon;
+    const hasCore = Number.isFinite(coreLat) &&
+                    Number.isFinite(coreLon) &&
+                    Number.isFinite(maxPressure);
+    const hasCentroid = Number.isFinite(cLat) && Number.isFinite(cLon);
+
+    // Etiquetas compartidas por ambos marcadores del Par Dinámico.
+    // Deben declararse en el ámbito de la función: usarlas dentro de los
+    // bloques if (hasCore) / if (hasCentroid) provocaba un ReferenceError
+    // que abortaba el trazado de isóbaras y del mapa de anomalías.
+    const forecastTag = isForecast ? `<span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700;">📡 PRONÓSTICO GFS</span><br>` : '';
+    const dateNotice = dateStr ? `<div style="color: #64748b; font-size: 11px; margin-bottom: 3px;">Fecha: <b>${dateStr}</b></div>` : '';
 
     // 1. Vector Geodésico de Desacople Físico (Línea discontinua Núcleo - Centroide)
     const distKm = extraMetrics.dist_decoupling_km !== undefined ? extraMetrics.dist_decoupling_km : null;
     const azimuth = extraMetrics.azimuth_deg !== undefined ? extraMetrics.azimuth_deg : null;
 
-    if (Math.abs(coreLat - cLat) > 0.05 || Math.abs(coreLon - cLon) > 0.05) {
+    if (hasCore && hasCentroid &&
+        (Math.abs(coreLat - cLat) > 0.05 || Math.abs(coreLon - cLon) > 0.05)) {
       const decouplingLine = L.polyline([[coreLat, coreLon], [cLat, cLon]], {
         color: '#f43f5e',
         weight: 2.5,
@@ -368,9 +377,9 @@ class DashboardMaps {
       });
 
       let regimeLabel = 'Simetría Concéntrica';
-      if (distKm && distKm >= 200) {
-        if (azimuth >= 45 && azimuth < 135) regimeLabel = 'Cuña Costera (Chile Central)';
-        else if (azimuth >= 135 && azimuth < 225) regimeLabel = 'Bloqueo Patagónico Austral';
+      if (distKm && distKm >= 300) {
+        if (azimuth >= 30 && azimuth < 120) regimeLabel = 'Cuña Costera (Chile Central)';
+        else if (azimuth >= 120 && azimuth < 210) regimeLabel = 'Bloqueo Patagónico Austral';
         else regimeLabel = 'Elongación Oceánica';
       }
 
@@ -385,15 +394,13 @@ class DashboardMaps {
     }
 
     // 2. Marcador 1: Núcleo Barométrico Continuo Submalla (+)
+    if (hasCore) {
     const coreIcon = L.divIcon({
       className: 'aps-core-icon',
       html: `<div class="aps-core-marker" title="Núcleo Continuo (Submalla 2D)">+</div>`,
       iconSize: [22, 22],
       iconAnchor: [11, 11]
     });
-
-    const forecastTag = isForecast ? `<span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700;">📡 PRONÓSTICO GFS</span><br>` : '';
-    const dateNotice = dateStr ? `<div style="color: #64748b; font-size: 11px; margin-bottom: 3px;">Fecha: <b>${dateStr}</b></div>` : '';
 
     this.coreMarker = L.marker([coreLat, coreLon], { icon: coreIcon })
       .bindPopup(`
@@ -407,8 +414,10 @@ class DashboardMaps {
         </div>
       `)
       .addTo(this.isobarLayer);
+    }
 
     // 3. Marcador 2: Centroide de Masa Barométrica Adaptativo (◇)
+    if (hasCentroid) {
     const centroidIcon = L.divIcon({
       className: 'aps-centroid-icon',
       html: `<div class="aps-centroid-marker" title="Centroide de Masa (Adaptativo)"><span>◇</span></div>`,
@@ -428,35 +437,15 @@ class DashboardMaps {
         </div>
       `)
       .addTo(this.isobarLayer);
-
-    // 4. Trazado de Isobaras con Marching Squares 2D — campos SLP reales por fecha
-    let field = null;
-
-    // Prioridad 1: buscar en spatial_grids_by_date (nuevo formato)
-    if (spatialGrid && spatialGrid.by_date && spatialGrid.by_date[dateStr]) {
-      const g = spatialGrid.by_date[dateStr];
-      field = { lats: g.lats, lons: g.lons, grid: g.current_slp };
-    }
-    // Prioridad 2: compatibilidad con spatial_grid único (formato antiguo)
-    else if (spatialGrid && spatialGrid.current_slp
-             && spatialGrid.date === dateStr) {
-      field = { lats: spatialGrid.lats, lons: spatialGrid.lons, grid: spatialGrid.current_slp };
-    }
-    // Prioridad 3: Fallback de emergencia — campo gaussiano sintético solo si no hay datos reales.
-    else if (spatialGrid && spatialGrid.lats && spatialGrid.lons) {
-      console.warn(
-        `[maps.js] No se encontró rejilla SLP para la fecha ${dateStr}. `
-        + 'Usando campo de presión sintético como fallback de emergencia.'
-      );
-      field = this.generateSynopticPressureGrid(coreLat, coreLon, maxPressure);
     }
 
-    if (!field) {
-      console.error(
-        `[maps.js] No se pudo construir ningun campo de presion para ${dateStr}. `
-        + 'El mapa de presion no mostrara isobaras.'
-      );
-    }
+    // 4. Trazado de Isobaras con Marching Squares 2D sobre campo real.
+    // Sin coincidencia exacta model_id/date no se dibuja ninguna isóbara.
+    const hasValidGrid = this.isValidGrid(spatialGrid, dateStr, modelId);
+    const field = hasValidGrid
+      ? { lats: spatialGrid.lats, lons: spatialGrid.lons, grid: spatialGrid.slp }
+      : null;
+    this.setGridNotice(this.pressureGridNotice, !hasValidGrid);
 
     const isobarConfig = [
       { p: 1028, color: '#f59e0b', weight: 2.4, dash: null, highlight: false },
@@ -467,6 +456,7 @@ class DashboardMaps {
     ];
 
     isobarConfig.forEach(iso => {
+      if (!field || !Number.isFinite(maxPressure)) return;
       if (maxPressure >= iso.p - 1.5) {
         const polylines = MarchingSquares.contour(field.grid, field.lats, field.lons, iso.p);
 
@@ -509,20 +499,28 @@ class DashboardMaps {
     if (badge) {
       const datePrefix = dateStr ? `[${dateStr}] ` : '';
       const forecastLabel = isForecast ? '📡 GFS: ' : 'Par Dinámico: ';
-      badge.textContent = `${datePrefix}${forecastLabel}Núcleo ${Math.abs(coreLat).toFixed(1)}°S, ${Math.abs(coreLon).toFixed(1)}°W | Cent: ${Math.abs(cLat).toFixed(1)}°S, ${Math.abs(cLon).toFixed(1)}°W`;
+      if (hasCore && hasCentroid) {
+        badge.textContent = `${datePrefix}${forecastLabel}Núcleo ${Math.abs(coreLat).toFixed(1)}°S, ${Math.abs(coreLon).toFixed(1)}°W | Cent: ${Math.abs(cLat).toFixed(1)}°S, ${Math.abs(cLon).toFixed(1)}°W`;
+      } else {
+        badge.textContent = `${datePrefix}${forecastLabel}N/D`;
+      }
     }
   }
 
   /**
    * Actualiza el Mapa de Anomalías Superficiales
    */
-  updateAnomalyMap(spatialGrid, centerLat, centerLon, maxPressure) {
+  updateAnomalyMap(spatialGrid, centerLat, centerLon, maxPressure, dateStr = null, modelId = null) {
     this.anomalyLayer.clearLayers();
 
-    if (spatialGrid && spatialGrid.current_anomaly && spatialGrid.lats && spatialGrid.lons) {
+    const hasValidGrid = this.isValidGrid(spatialGrid, dateStr, modelId);
+    const hasAnomaly = hasValidGrid && Array.isArray(spatialGrid.anomaly);
+    this.setGridNotice(this.anomalyGridNotice, !hasAnomaly);
+
+    if (hasAnomaly) {
       const lats = spatialGrid.lats;
       const lons = spatialGrid.lons;
-      const anomGrid = spatialGrid.current_anomaly;
+      const anomGrid = spatialGrid.anomaly;
 
       const levels = [-6, -4, -2, 2, 4, 6];
       levels.forEach(lvl => {
@@ -544,15 +542,19 @@ class DashboardMaps {
       });
     }
 
-    // Marcador de referencia del centro
-    L.circleMarker([centerLat, centerLon], {
-      radius: 6,
-      color: '#ffffff',
-      fillColor: '#f59e0b',
-      fillOpacity: 0.9,
-      weight: 2
-    })
-    .bindTooltip(`Centro APS: ${maxPressure.toFixed(1)} hPa`)
-    .addTo(this.anomalyLayer);
+    // Marcador de referencia del centro solo con métricas finitas.
+    if (Number.isFinite(centerLat) &&
+        Number.isFinite(centerLon) &&
+        Number.isFinite(maxPressure)) {
+      L.circleMarker([centerLat, centerLon], {
+        radius: 6,
+        color: '#ffffff',
+        fillColor: '#f59e0b',
+        fillOpacity: 0.9,
+        weight: 2
+      })
+      .bindTooltip(`Centro APS: ${maxPressure.toFixed(1)} hPa`)
+      .addTo(this.anomalyLayer);
+    }
   }
 }

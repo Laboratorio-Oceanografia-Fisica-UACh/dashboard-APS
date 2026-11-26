@@ -69,7 +69,9 @@ class DashboardCharts {
         if (val === 'forecast') {
           const gfsModel = Object.values(this.models).find(m => m.id === 'noaa_gfs_forecast');
           if (gfsModel && gfsModel.dates && gfsModel.dates.length > 0) {
-            this.modelSelector.selectedModelIds.add('noaa_gfs_forecast');
+            this.modelSelector.selectedIds.add('noaa_gfs_forecast');
+            this.modelSelector.updateChecklistUI();
+            this.modelSelector.updateCountBadge();
             this.customStartDate = gfsModel.dates[0];
             this.customEndDate = gfsModel.dates[gfsModel.dates.length - 1];
             this.currentRange = 'custom';

@@ -73,6 +73,9 @@ jobs:
           fi
           python pipeline/update_era5_monthly.py $ARGS
 
+      - name: Publicar rejillas 2D reales de cada día del mes
+        run: python pipeline/export_historical_grids.py --recent-days 90
+
       - name: Construir payload web desde la caché
         run: python pipeline/build_dashboard.py --from-cache --active-start-year 1993
 

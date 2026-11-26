@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentDateIndex = 0;
   let isPlaying = false;
   let playInterval = null;
-  let focusedModelId = 'era5_reanalisis';
+  let focusedModelId = 'era5_reanalysis';
   let gridStore = null;
   let mapRequestToken = 0;
 
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const opt = document.createElement('option');
       opt.value = model.id;
       opt.textContent = model.name;
-      if (model.id === 'era5_reanalisis') opt.selected = true;
+      if (model.id === 'era5_reanalysis') opt.selected = true;
       select.appendChild(opt);
     }
 
@@ -276,7 +276,12 @@ document.addEventListener('DOMContentLoaded', async () => {
    * de forma analítica y empírica sin ningún 1022.0 estático.
    */
   function getClimatologyForDate(dateStr) {
-    const climModel = rawData.models['Climatología Normal OMM'];
+    // La serie separada se reinserta bajo la clave canónica; el id queda como
+    // respaldo por si el nombre visible cambia en el futuro.
+    const climModel = rawData.models['Climatología Normal OMM'] ||
+      Object.values(rawData.models).find(
+        m => m && m.id === 'wmo_climatology_1994_2023'
+      );
     if (!climModel ||
         !Array.isArray(climModel.dates) ||
         !Array.isArray(climModel.p_max_fit)) {
@@ -345,22 +350,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         lonCent = model.lon_centroid ? model.lon_centroid[dIdx] : null;
         area1020 = model.area_1020 ? model.area_1020[dIdx] : null;
         vol = model.vol_integral ? model.vol_integral[dIdx] : null;
-        hEff = model.h_eff ? model.h_eff[dIdx] : null;
-        distDec = model.dist_decoupling_km ? model.dist_decoupling_km[dIdx] : null;
-        azimuth = model.azimuth_deg ? model.azimuth_deg[dIdx] : null;
+        hEff = model.h_eff != null ? Number(model.h_eff[dIdx]) : null;
+        distDec = model.dist_decoupling_km != null ? Number(model.dist_decoupling_km[dIdx]) : null;
+        azimuth = model.azimuth_deg != null ? Number(model.azimuth_deg[dIdx]) : null;
         pPat = model.p_patagonia ? model.p_patagonia[dIdx] : null;
-      } else if (model.latest) {
-        p = model.latest.p_max_fit || model.latest.pressure_psa;
-        latCore = model.latest.lat_core || model.latest.lat;
-        lonCore = model.latest.lon_core || model.latest.lon;
-        latCent = model.latest.lat_centroid || null;
-        lonCent = model.latest.lon_centroid || null;
-        area1020 = model.latest.area_1020 || null;
-        vol = model.latest.vol_integral || null;
-        hEff = model.latest.h_eff || null;
-        distDec = model.latest.dist_decoupling_km || null;
-        azimuth = model.latest.azimuth_deg || null;
-        pPat = model.latest.p_patagonia || null;
       }
 
       const anom = (p !== null && climBaseline !== null)
@@ -398,13 +391,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (kpiArea) kpiArea.innerHTML = area1020 !== null ? `${area1020.toFixed(2)} <small>M km²</small>` : '-- <small>M km²</small>';
       if (kpiVolume) {
         kpiVolume.textContent = vol !== null ?
-          `Volumen: ${vol.toFixed(1)} hPa·M km² (H̄: ${hEff ? hEff.toFixed(2) : '--'} hPa)` :
+          `Volumen: ${vol.toFixed(1)} hPa·M km² (H̄: ${Number.isFinite(hEff) ? hEff.toFixed(2) : '--'} hPa)` :
           'Volumen: -- hPa·M km²';
       }
 
       // KPI 4: Desacople Morfológico
       if (kpiDecoupling) {
-        kpiDecoupling.textContent = distDec !== null ? `${distDec.toFixed(1)} km (${azimuth ? azimuth.toFixed(1) : '--'}°)` : '-- km';
+        kpiDecoupling.textContent = distDec !== null ? `${distDec.toFixed(1)} km (${Number.isFinite(azimuth) ? azimuth.toFixed(1) : '--'}°)` : '-- km';
       }
       if (kpiDecouplingBadge && distDec !== null) {
         let badgeHtml = '';
@@ -418,6 +411,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           badgeHtml = '<span class="badge-regime-oceanic">Elongación Oceánica</span>';
         }
         kpiDecouplingBadge.innerHTML = badgeHtml;
+      } else if (kpiDecouplingBadge) {
+        kpiDecouplingBadge.innerHTML = '<span class="badge-regime-oceanic">Sin datos</span>';
       }
 
       // KPI 5: Caja Norpatagonia
@@ -470,16 +465,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         azimuth = targetModel.azimuth_deg ? targetModel.azimuth_deg[dIdx] : null;
         area1020 = targetModel.area_1020 ? targetModel.area_1020[dIdx] : null;
         vol = targetModel.vol_integral ? targetModel.vol_integral[dIdx] : null;
-      } else if (targetModel.latest) {
-        latCore = targetModel.latest.lat_core || targetModel.latest.lat;
-        lonCore = targetModel.latest.lon_core || targetModel.latest.lon;
-        latCent = targetModel.latest.lat_centroid || null;
-        lonCent = targetModel.latest.lon_centroid || null;
-        p = targetModel.latest.p_max_fit || targetModel.latest.pressure_psa;
-        distDec = targetModel.latest.dist_decoupling_km || null;
-        azimuth = targetModel.latest.azimuth_deg || null;
-        area1020 = targetModel.latest.area_1020 || null;
-        vol = targetModel.latest.vol_integral || null;
       }
     }
 
@@ -505,19 +490,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Descarta respuestas obsoletas si el usuario movió el slider mientras cargaba.
     if (requestToken !== mapRequestToken) return;
 
-    // Construir estructura unificada: { by_date: { "YYYY-MM-DD": grid }, date: latest }
-    const spatialGridForMap = rawData.spatial_grids_by_date
-      ? { by_date: rawData.spatial_grids_by_date, date: rawData.spatial_grid?.date ?? null }
-      : spatialGrid;  // fallback a formato antiguo
+    // Cada mapa se renderiza de forma aislada: un fallo en el mapa de presión
+    // no debe impedir que se dibuje el mapa de anomalías.
+    try {
+      mapsInstance.updatePressureMap(
+        latCore, lonCore, p, latCent, lonCent,
+        activeDate, isForecast, spatialGrid, extraMetrics, modelId
+      );
+    } catch (error) {
+      console.error('[MAPA PRESIÓN] Error al renderizar el Par Dinámico:', error);
+    }
 
-    mapsInstance.updatePressureMap(
-      latCore, lonCore, p, latCent, lonCent,
-      activeDate, isForecast, spatialGridForMap, extraMetrics, modelId
-    );
-
-    mapsInstance.updateAnomalyMap(
-      spatialGrid, latCore, lonCore, p, activeDate, modelId
-    );
+    try {
+      mapsInstance.updateAnomalyMap(
+        spatialGrid, latCore, lonCore, p, activeDate, modelId
+      );
+    } catch (error) {
+      console.error('[MAPA ANOMALÍAS] Error al renderizar el campo de anomalías:', error);
+    }
   }
 
   // =========================================================================
@@ -592,7 +582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (footerMethodologyBtn) footerMethodologyBtn.addEventListener('click', () => openModal('methodologyModalOverlay'));
 
     // 4. Modal Cómo Citar (Navbar y Footer)
-    const openCitationBtn = document.getElementById('openCitationBtn');
+    const openCitationBtn = document.getElementById('openCitationModalBtn');
     const footerCitationBtn = document.getElementById('footerCitationBtn');
     if (openCitationBtn) openCitationBtn.addEventListener('click', () => openModal('citationModalOverlay'));
     if (footerCitationBtn) footerCitationBtn.addEventListener('click', () => openModal('citationModalOverlay'));
@@ -732,7 +722,7 @@ async function loadData() {
         if (climRes.ok) {
           const climDoc = await climRes.json();
           if (climDoc && climDoc.model && climDoc.model.name) {
-            payload.models[climDoc.model.name] = climDoc.model;
+            payload.models['Climatología Normal OMM'] = climDoc.model;
           }
         } else {
           console.warn(

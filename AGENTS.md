@@ -213,13 +213,6 @@ dashboard-anticiclon-pacifico/
 ```json
 {
   "metadata": { "project": "...", "institution": "LOFA - UACh", "version": "5.3", ... },
-  "spatial_grid": {
-    "date": "YYYY-MM-DD",
-    "lats": [-18.0, ...],
-    "lons": [-120.0, ...],
-    "current_slp": [[1024.1, ...], ...],
-    "current_anomaly": [[1.2, ...], ...]
-  },
   "models": {
     "ERA5 Reanálisis": {
       "id": "era5_reanalisis",
@@ -243,6 +236,13 @@ dashboard-anticiclon-pacifico/
 }
 ```
 
+Los campos 2D ya **no** viajan en este payload. Cada rejilla real se publica
+como un documento independiente en `web/data/grids/<model_id>/<fecha>.json`,
+registrado en `web/data/grids/manifest.json` y cargado de forma diferida por
+`web/js/grid_store.js`. El productor diario es
+`pipeline/export_historical_grids.py`: publica un documento por día real del
+NetCDF, sin interpolar ni sintetizar fechas ausentes.
+
 ---
 
 ## 6. Known Gotchas & Critical Traps
@@ -252,7 +252,7 @@ dashboard-anticiclon-pacifico/
 2. **Offline Testing & Natural Earth Shapefiles:**  
    `spatial_geometry.py` auto-downloads `ne_10m_land.zip` from Amazon S3 on first run if missing. In strict airgapped/offline sandboxes, `data/shapefiles/` must be pre-populated or tests will fail on network timeout.
 3. **Historical Maps in Frontend (`maps.js`):**  
-   To preserve instantaneous web loading (< 2 MB total bundle), `latest_aps_data.json` only transmits a single 2D spatial grid (for the latest processed day). When scrubbing past dates on the timeline slider, Leaflet renders a parametric Gaussian field centered on the Core (+). Keep this in mind when debugging historical maps.
+   To preserve instantaneous web loading (< 2 MB total bundle), the payload transmits no 2D grid: each real field is lazy-loaded from `web/data/grids/<model_id>/<fecha>.json`. `maps.js` only draws isobars when `model_id` and `date` match exactly; otherwise it shows `Campo 2D no disponible para esta fecha/modelo`. Never restore the old parametric Gaussian field: that would violate directive 2.3. Run `pipeline/export_historical_grids.py` to publish real daily fields from the local NetCDFs.
 4. **Test Skipping Warning:**  
    `test_aps_physics.py` skips `test_coastal_zero_land_centers` if `web/data/aps_multimodel_metrics_lofa.csv` is missing. Ensure the pipeline has produced the CSV before declaring a 100% test pass.
 

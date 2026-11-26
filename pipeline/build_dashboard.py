@@ -25,9 +25,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import pandas as pd
 
-from pipeline.calculate_aps_metrics import build_dashboard_dataset_v53
+from pipeline.calculate_aps_metrics import (
+    build_dashboard_dataset_v53,
+    write_dashboard_payloads,
+)
 from pipeline.compute_climatology import load_wmo_climatology
-from pipeline.file_utils import atomic_csv_dump, atomic_json_dump
+from pipeline.file_utils import atomic_csv_dump
+from pipeline.grid_export import export_grid_document, normalize_grid_document
 from pipeline.paths import resolve_project_path
 from pipeline.validation_metrics import load_gfs_history
 
@@ -57,32 +61,27 @@ def _read_cache(cache_path):
     return frame
 
 
-def _load_spatial_grid(path, fallback_json):
+def _load_spatial_grid(path):
     """
-    Carga la rejilla espacial más reciente o la reutiliza del payload previo.
+    Carga y normaliza la rejilla espacial más reciente.
+    Acepta el contrato nuevo (slp/anomaly) y migra el legado
+    (current_slp/current_anomaly) sin inventar datos.
     """
     path = Path(path)
-    if path.exists():
-        with open(path, "r", encoding="utf-8") as handle:
-            return json.load(handle)
+    if not path.exists():
+        print(
+            f"⚠️  Sin rejilla espacial en {path}; el mapa mostrará el aviso "
+            "'Campo 2D no disponible para esta fecha/modelo'."
+        )
+        return None
 
-    fallback_json = Path(fallback_json)
-    if fallback_json.exists():
-        try:
-            with open(fallback_json, "r", encoding="utf-8") as handle:
-                previous = json.load(handle)
-            grid = previous.get("spatial_grid")
-            if grid:
-                print(
-                    f"⚠️  No existe {path}; se reutiliza la rejilla espacial del "
-                    f"payload previo {fallback_json}."
-                )
-                return grid
-        except Exception as error:
-            print(f"⚠️  No se pudo reutilizar la rejilla previa: {error}")
+    with open(path, "r", encoding="utf-8") as handle:
+        document = json.load(handle)
 
-    print(f"⚠️  Sin rejilla espacial en {path}; el mapa 2D no tendrá campo de fondo.")
-    return None
+    return normalize_grid_document(
+        document,
+        model_id="era5_reanalysis",
+    )
 
 
 def main():
@@ -159,7 +158,10 @@ def main():
         )
         sys.exit(1)
 
-    spatial_grid = _load_spatial_grid(spatial_grid_path, web_output_path)
+    spatial_grid = _load_spatial_grid(spatial_grid_path)
+    if spatial_grid is not None:
+        grid_path = export_grid_document(spatial_grid)
+        print(f"✅ [REJILLA] Campo 2D real publicado en: {grid_path}")
     gfs_history = load_gfs_history(gfs_history_path)
 
     dataset, multimodel = build_dashboard_dataset_v53(
@@ -177,8 +179,8 @@ def main():
         "n_days": int(len(active)),
     }
 
-    atomic_json_dump(dataset, output_path, indent=2, ensure_ascii=False, allow_nan=False)
-    atomic_json_dump(dataset, web_output_path, indent=2, ensure_ascii=False, allow_nan=False)
+    payload_bytes = write_dashboard_payloads(dataset, output_path, web_output_path)
+    print(f"✅ [PAYLOAD] JSON compacto: {payload_bytes} bytes")
     atomic_csv_dump(active, web_era5_path, index=False)
     atomic_csv_dump(multimodel, web_multimodel_path, index=False)
 

@@ -88,7 +88,7 @@ def validate_grid_document(document):
         _validate_matrix("anomaly", anomaly, len(lats), len(lons))
 
     forecast_hour = document.get("forecast_hour")
-    if forecast_hour is not None and not isinstance(forecast_hour, int):
+    if forecast_hour is not None and (isinstance(forecast_hour, bool) or not isinstance(forecast_hour, int)):
         raise ValueError("forecast_hour debe ser entero o null")
 
     return True
@@ -231,6 +231,66 @@ def export_grid_document(document, grids_dir=None):
         indent=2, ensure_ascii=False, allow_nan=False,
     )
     return target
+
+
+def export_grid_documents(documents, grids_dir=None, force=False):
+    """
+    Publica un lote de rejillas reales y actualiza el manifiesto una sola vez.
+
+    Es el equivalente atómico a llamar ``export_grid_document`` en bucle, pero
+    evita reescribir el manifiesto por cada fecha (coste cuadrático en un
+    backfill de miles de días). Las rutas se resuelven contra PROJECT_ROOT y
+    cada documento se valida antes de escribirse.
+
+    Si ``force`` es falso, una rejilla ya publicada con resolución mayor o
+    igual no se sustituye: así un backfill reducido no degrada la resolución
+    completa de la ventana operativa reciente.
+
+    Devuelve ``(escritas, omitidas)``; cada elemento es ``(model_id, date)``.
+    """
+    base = _resolve_grids_dir(grids_dir)
+    manifest = load_grid_manifest(base)
+    written = []
+    skipped = []
+
+    for document in documents:
+        document = normalize_grid_document(document)
+        model_id = document["model_id"]
+        date = document["date"]
+        relative = Path(model_id) / f"{date}.json"
+        target = base / relative
+        entry = manifest["grids"].get(model_id, {}).get(date)
+        existing_rows = entry.get("n_lats", 0) if isinstance(entry, dict) else 0
+
+        if (not force and target.exists() and
+                isinstance(existing_rows, int) and
+                existing_rows >= len(document["lats"])):
+            skipped.append((model_id, date))
+            continue
+
+        atomic_json_dump(
+            document, target,
+            indent=None, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False,
+        )
+        manifest["grids"].setdefault(model_id, {})[date] = {
+            "file": relative.as_posix(),
+            "forecast_hour": document.get("forecast_hour"),
+            "n_lats": len(document["lats"]),
+            "n_lons": len(document["lons"]),
+            "bytes": target.stat().st_size,
+        }
+        written.append((model_id, date))
+
+    if written:
+        manifest["generated_at"] = datetime.datetime.now(
+            datetime.timezone.utc
+        ).isoformat()
+        atomic_json_dump(
+            manifest, base / MANIFEST_NAME,
+            indent=2, ensure_ascii=False, allow_nan=False,
+        )
+    return written, skipped
 
 
 def prune_model_grids(model_id, keep_dates, grids_dir=None):

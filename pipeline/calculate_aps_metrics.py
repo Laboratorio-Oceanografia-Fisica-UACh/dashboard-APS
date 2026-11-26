@@ -14,10 +14,11 @@ Versión 5.3 Definitiva:
 - Normal Estándar Climatológica OMM 1994–2023 (era satelital 4D-Var moderna).
 """
 
-import os
-import sys
 import glob
 import json
+import os
+import re
+import sys
 import argparse
 import datetime
 from pathlib import Path
@@ -105,14 +106,14 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
 
     # Filtrar por año si se especifica
     if start_year is not None or end_year is not None:
+        _YEAR_RE = re.compile(r"^era5_mslp_pacifico_(\d{4})\.nc$")
         filtered = []
         for f in all_nc_files:
-            try:
-                y = int(os.path.basename(f).replace("era5_mslp_pacifico_", "").replace(".nc", ""))
+            match = _YEAR_RE.fullmatch(os.path.basename(f))
+            if match:
+                y = int(match.group(1))
                 if (start_year is None or y >= start_year) and (end_year is None or y <= end_year):
                     filtered.append(f)
-            except ValueError:
-                pass
         all_nc_files = filtered
 
     print(f"\n🌊 [PIPELINE V5.3] Se procesarán {len(all_nc_files)} archivos NetCDF en {input_dir}.")
@@ -152,10 +153,10 @@ def process_netcdf_files(input_dir, cache_csv_path, recompute_all=False, start_y
     # Procesar cada NetCDF
     for filepath in all_nc_files:
         filename = os.path.basename(filepath)
-        try:
-            year_int = int(filename.replace("era5_mslp_pacifico_", "").replace(".nc", ""))
-        except ValueError:
+        match = re.fullmatch(r"era5_mslp_pacifico_(\d{4})\.nc", filename)
+        if not match:
             continue
+        year_int = int(match.group(1))
 
         if year_int in processed_years:
             continue
@@ -289,6 +290,18 @@ def extract_latest_spatial_grid(input_dir, df):
         if time_values.size == 0:
             return None
         grid_date = str(time_values[0])[:10]
+
+        # El mapa inicial apunta siempre a la última fecha ERA5 del payload.
+        # Publicar una rejilla de otra fecha como "vigente" dejaría ese mapa
+        # sin isóbaras. Se usa el exportador diario para rejillas históricas.
+        if grid_date != last_date_str:
+            print(
+                f"⚠️  [REJILLA] El NetCDF aporta {grid_date} pero la última fecha "
+                f"del payload es {last_date_str}. No se publica como rejilla "
+                "vigente; ejecute export_historical_grids.py para publicar "
+                "campos reales por fecha."
+            )
+            return None
 
         lats = [float(round(y, 2)) for y in sampled["latitude"].values]
         lons = [float(round(x, 2)) for x in sampled["longitude"].values]

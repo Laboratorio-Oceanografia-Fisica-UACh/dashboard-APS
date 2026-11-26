@@ -41,6 +41,11 @@ from pipeline.file_utils import (
     is_nonempty_file,
     temp_path_for,
 )
+from pipeline.grid_export import (
+    build_grid_document,
+    export_grid_document,
+    prune_model_grids,
+)
 from pipeline.paths import resolve_project_path
 from pipeline.spatial_geometry import download_and_load_natural_earth_10m
 
@@ -194,10 +199,10 @@ def _normalize_and_crop_grid(pressure, lats, lons):
     return pressure, lats, lons
 
 
-def _extract_metrics_from_grib(grib_path, land_union):
+def _load_cropped_pressure(grib_path):
     """
-    Lee un GRIB2, recorta al dominio ERA5 y calcula las métricas V5.3
-    con el motor común y convolución marina normalizada sigma=1.0.
+    Lee un GRIB2, normaliza longitudes y recorta al dominio ERA5.
+    Devuelve presión en hPa, latitudes y longitudes reales.
     """
     import xarray as xr
 
@@ -206,15 +211,37 @@ def _extract_metrics_from_grib(grib_path, land_union):
         lats = ds["latitude"].values
         lons = ds["longitude"].values
 
-    pressure, lats, lons = _normalize_and_crop_grid(pressure, lats, lons)
-    if pressure.size == 0:
-        return None
+    return _normalize_and_crop_grid(pressure, lats, lons)
 
-    return compute_daily_aps_metrics(
+
+def _extract_metrics_and_grid(grib_path, land_union, valid_date, forecast_hour):
+    """
+    Calcula métricas V5.3 y construye el documento de rejilla 2D real.
+    No genera anomalías GFS: no existe una climatología 2D cargada en este flujo.
+    """
+    pressure, lats, lons = _load_cropped_pressure(grib_path)
+    if pressure.size == 0:
+        return None, None
+
+    metrics = compute_daily_aps_metrics(
         pressure, lats, lons,
         land_union=land_union,
         sigma=1.0,
     )
+    if metrics is None:
+        return None, None
+
+    grid_document = build_grid_document(
+        model_id="noaa_gfs_forecast",
+        date=valid_date,
+        lats=lats,
+        lons=lons,
+        slp=pressure,
+        anomaly=None,
+        forecast_hour=forecast_hour,
+        anomaly_reference=None,
+    )
+    return metrics, grid_document
 
 
 def _download_step(date_str, cycle_str, f_step, target_grib,
@@ -279,7 +306,9 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir, land_union,
                 continue
 
         try:
-            metrics = _extract_metrics_from_grib(target_grib, land_union)
+            metrics, grid_document = _extract_metrics_and_grid(
+                target_grib, land_union, valid_date, f_step
+            )
         except Exception as error:
             if target_grib.exists():
                 target_grib.unlink()
@@ -287,8 +316,15 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir, land_union,
             failed_steps.append(f_step)
             continue
 
-        if metrics is None:
+        if metrics is None or grid_document is None:
             print(f"⚠️  f{f_str} sin puntos oceánicos válidos; se omite.")
+            failed_steps.append(f_step)
+            continue
+
+        try:
+            export_grid_document(grid_document)
+        except Exception as error:
+            print(f"⚠️  No se pudo publicar la rejilla 2D de f{f_str}: {error}")
             failed_steps.append(f_step)
             continue
 
@@ -320,6 +356,12 @@ def fetch_gfs_forecast_steps(date_str, cycle_str, output_dir, land_union,
         raise RuntimeError(
             f"Modo estricto: fallaron los pasos {failed_steps} aunque hay {n_steps} válidos."
         )
+
+    # Solo un ciclo completo puede retirar fechas del manifiesto anterior.
+    if not failed_steps and n_steps == len(FORECAST_HOURS):
+        removed = prune_model_grids("noaa_gfs_forecast", forecast["dates"])
+        if removed:
+            print(f"🧹 [REJILLAS] Fechas GFS antiguas retiradas: {removed}")
 
     return forecast
 

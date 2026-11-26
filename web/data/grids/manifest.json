@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-26T20:22:26.303059+00:00",
+  "grids": {
+    "era5_reanalysis": {
+      "2026-10-31": {
+        "file": "era5_reanalysis/2026-10-31.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 83899
+      },
+      "2026-11-10": {
+        "file": "era5_reanalysis/2026-11-10.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82855
+      },
+      "2026-10-01": {
+        "file": "era5_reanalysis/2026-10-01.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82419
+      },
+      "2026-10-02": {
+        "file": "era5_reanalysis/2026-10-02.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82831
+      },
+      "2026-10-03": {
+        "file": "era5_reanalysis/2026-10-03.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82794
+      },
+      "2026-10-04": {
+        "file": "era5_reanalysis/2026-10-04.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82903
+      },
+      "2026-10-05": {
+        "file": "era5_reanalysis/2026-10-05.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82822
+      },
+      "2026-10-06": {
+        "file": "era5_reanalysis/2026-10-06.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 83578
+      },
+      "2026-10-07": {
+        "file": "era5_reanalysis/2026-10-07.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 84110
+      },
+      "2026-10-08": {
+        "file": "era5_reanalysis/2026-10-08.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82969
+      },
+      "2026-10-09": {
+        "file": "era5_reanalysis/2026-10-09.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82808
+      },
+      "2026-10-10": {
+        "file": "era5_reanalysis/2026-10-10.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82555
+      },
+      "2026-10-11": {
+        "file": "era5_reanalysis/2026-10-11.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82368
+      },
+      "2026-10-12": {
+        "file": "era5_reanalysis/2026-10-12.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82180
+      },
+      "2026-10-13": {
+        "file": "era5_reanalysis/2026-10-13.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82388
+      },
+      "2026-10-14": {
+        "file": "era5_reanalysis/2026-10-14.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82874
+      },
+      "2026-10-15": {
+        "file": "era5_reanalysis/2026-10-15.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 83025
+      },
+      "2026-10-16": {
+        "file": "era5_reanalysis/2026-10-16.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82854
+      },
+      "2026-10-17": {
+        "file": "era5_reanalysis/2026-10-17.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82954
+      },
+      "2026-10-18": {
+        "file": "era5_reanalysis/2026-10-18.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 84552
+      },
+      "2026-10-19": {
+        "file": "era5_reanalysis/2026-10-19.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 84360
+      },
+      "2026-10-20": {
+        "file": "era5_reanalysis/2026-10-20.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 84783
+      },
+      "2026-10-21": {
+        "file": "era5_reanalysis/2026-10-21.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 84550
+      },
+      "2026-10-22": {
+        "file": "era5_reanalysis/2026-10-22.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 83288
+      },
+      "2026-10-23": {
+        "file": "era5_reanalysis/2026-10-23.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82753
+      },
+      "2026-10-24": {
+        "file": "era5_reanalysis/2026-10-24.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 83200
+      },
+      "2026-10-25": {
+        "file": "era5_reanalysis/2026-10-25.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82568
+      },
+      "2026-10-26": {
+        "file": "era5_reanalysis/2026-10-26.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82409
+      },
+      "2026-10-27": {
+        "file": "era5_reanalysis/2026-10-27.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82872
+      },
+      "2026-10-28": {
+        "file": "era5_reanalysis/2026-10-28.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 82518
+      },
+      "2026-10-29": {
+        "file": "era5_reanalysis/2026-10-29.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 83440
+      },
+      "2026-10-30": {
+        "file": "era5_reanalysis/2026-10-30.json",
+        "forecast_hour": null,
+        "n_lats": 61,
+        "n_lons": 101,
+        "bytes": 83743
+      }
+    }
+  }
+}

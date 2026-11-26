@@ -15,6 +15,8 @@ entrada de este script y la caché CSV es la fuente de verdad operativa.
 import argparse
 import calendar
 import datetime
+import importlib.util
+import json
 import os
 import sys
 from pathlib import Path
@@ -38,6 +40,11 @@ from pipeline.file_utils import (
     atomic_json_dump,
     is_nonempty_file,
     temp_path_for,
+)
+from pipeline.grid_export import (
+    build_grid_document,
+    export_grid_document,
+    normalize_grid_document,
 )
 from pipeline.paths import resolve_project_path
 from pipeline.spatial_geometry import (
@@ -219,21 +226,22 @@ def _daily_frames_from_netcdf(nc_path, land_union):
                 latitude=slice(None, None, WEB_GRID_STRIDE),
                 longitude=slice(None, None, WEB_GRID_STRIDE),
             ).compute()
-            sampled_values = sampled.values
+            sampled_values = np.asarray(sampled.values, dtype=float)
             mean_value = float(np.nanmean(sampled_values))
-            grid_payload = {
-                "date": str(time_values[-1])[:10],
-                "lats": [float(round(value, 2)) for value in sampled["latitude"].values],
-                "lons": [float(round(value, 2)) for value in sampled["longitude"].values],
-                "current_slp": [
-                    [float(round(value, 2)) if np.isfinite(value) else None for value in row]
-                    for row in sampled_values
-                ],
-                "current_anomaly": [
-                    [float(round(value - mean_value, 2)) if np.isfinite(value) else None for value in row]
-                    for row in sampled_values
-                ],
-            }
+            if not np.isfinite(mean_value):
+                raise ValueError(
+                    "La rejilla mensual no contiene valores oceánicos finitos."
+                )
+            grid_payload = build_grid_document(
+                model_id="era5_reanalysis",
+                date=str(time_values[-1])[:10],
+                lats=sampled["latitude"].values,
+                lons=sampled["longitude"].values,
+                slp=sampled_values,
+                anomaly=sampled_values - mean_value,
+                forecast_hour=None,
+                anomaly_reference="domain_spatial_mean",
+            )
 
     return rows, grid_payload
 
@@ -323,8 +331,36 @@ def main():
     upsert_cache(cache_path, rows)
 
     if grid_payload is not None:
-        atomic_json_dump(grid_payload, spatial_grid_path, indent=2, ensure_ascii=False)
-        print(f"✅ [REJILLA] latest_spatial_grid.json actualizado: {spatial_grid_path}")
+        export_grid_document(grid_payload)
+        print(f"✅ [REJILLA] Campo 2D real publicado en el directorio de rejillas.")
+
+        guard = normalize_grid_document(grid_payload, model_id="era5_reanalysis")
+        write_legacy = False
+        if not spatial_grid_path.exists():
+            write_legacy = True
+        else:
+            with open(spatial_grid_path, "r", encoding="utf-8") as handle:
+                legacy = json.load(handle)
+            norm_legacy = normalize_grid_document(legacy, model_id="era5_reanalysis")
+            if norm_legacy["date"] <= guard["date"]:
+                write_legacy = True
+
+        if write_legacy:
+            atomic_json_dump(
+                grid_payload, spatial_grid_path,
+                indent=None, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False,
+            )
+            print(f"✅ [REJILLA] latest_spatial_grid.json actualizado: {spatial_grid_path}")
+        else:
+            prev = normalize_grid_document(
+                json.load(open(spatial_grid_path, "r", encoding="utf-8")),
+                model_id="era5_reanalysis",
+            )["date"]
+            print(
+                f"⏭️  latest_spatial_grid.json no se sobrescribe: "
+                f"{prev} >= {guard['date']}."
+            )
     else:
         print("⚠️  No se pudo construir la rejilla espacial del mes descargado.")
 
