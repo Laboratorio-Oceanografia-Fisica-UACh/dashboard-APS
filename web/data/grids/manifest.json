@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-27T07:31:04.642864+00:00",
+  "generated_at": "2026-11-27T16:38:58.385350+00:00",
   "grids": {
     "era5_reanalysis": {
       "2026-10-31": {
@@ -222084,6 +222084,64 @@
         "n_lats": 31,
         "n_lons": 51,
         "bytes": 21855
+      }
+    },
+    "noaa_gfs_forecast": {
+      "2026-11-27": {
+        "file": "noaa_gfs_forecast/2026-11-27.json",
+        "forecast_hour": 0,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 194582
+      },
+      "2026-11-28": {
+        "file": "noaa_gfs_forecast/2026-11-28.json",
+        "forecast_hour": 24,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 194727
+      },
+      "2026-11-29": {
+        "file": "noaa_gfs_forecast/2026-11-29.json",
+        "forecast_hour": 48,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 194583
+      },
+      "2026-11-30": {
+        "file": "noaa_gfs_forecast/2026-11-30.json",
+        "forecast_hour": 72,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 194612
+      },
+      "2026-12-01": {
+        "file": "noaa_gfs_forecast/2026-12-01.json",
+        "forecast_hour": 96,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 194718
+      },
+      "2026-12-02": {
+        "file": "noaa_gfs_forecast/2026-12-02.json",
+        "forecast_hour": 120,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 192695
+      },
+      "2026-12-03": {
+        "file": "noaa_gfs_forecast/2026-12-03.json",
+        "forecast_hour": 144,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 193210
+      },
+      "2026-12-04": {
+        "file": "noaa_gfs_forecast/2026-12-04.json",
+        "forecast_hour": 168,
+        "n_lats": 121,
+        "n_lons": 201,
+        "bytes": 194267
       }
     }
   }
